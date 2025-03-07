@@ -1,0 +1,10 @@
+[build]
+  bin = "tmp/main.exe"  # <- Adicionando .exe para funcionar no Windows
+  cmd = "go build -o tmp/main.exe main.go"
+  include_ext = ["go"]
+  exclude_dir = ["tmp", "vendor"]
+  delay = 1000
+
+
+[log]
+  time = true

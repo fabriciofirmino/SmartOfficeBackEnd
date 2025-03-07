@@ -1,0 +1,336 @@
+basePath: /
+definitions:
+  controllers.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  controllers.RenewRequest:
+    properties:
+      id_cliente:
+        type: integer
+      quantidade_renovacao_em_meses:
+        type: integer
+    type: object
+  controllers.TestRequest:
+    properties:
+      nome_para_aviso:
+        type: string
+      numero_whats:
+        type: string
+      password:
+        description: Sempre será gerado
+        type: string
+      username:
+        description: Pode ser opcional
+        type: string
+    type: object
+  models.ClientDataSwagger:
+    properties:
+      admin_enabled:
+        description: Conta ativa para admin (0 ou 1)
+        type: integer
+      admin_notes:
+        description: Notas administrativas
+        type: string
+      allowed_ips:
+        description: IPs permitidos
+        type: string
+      allowed_ua:
+        description: User-agents permitidos
+        type: string
+      app_id:
+        description: ID do aplicativo
+        type: string
+      as_number:
+        description: Número do AS
+        type: string
+      bouquet:
+        description: Pacotes assinados
+        type: string
+      bypass_ua:
+        description: User-agent ignorado
+        type: string
+      created_at:
+        description: Data de criação da conta
+        type: string
+      created_by:
+        description: Criado por (usuário)
+        type: string
+      date_deleted:
+        description: Data de exclusão
+        type: string
+      deleted:
+        description: Indica se foi deletado (0 ou 1)
+        type: integer
+      email:
+        description: Email do usuário
+        type: string
+      enabled:
+        description: Conta ativa para o usuário (0 ou 1)
+        type: integer
+      enviar_notificacao:
+        description: Indica se recebe notificações (0 ou 1)
+        type: string
+      exp_date:
+        description: Data de expiração (formato ISO 8601)
+        type: string
+      force_server_id:
+        description: ID do servidor forçado
+        type: integer
+      forced_country:
+        description: País forçado
+        type: string
+      franquia:
+        description: Nome da franquia
+        type: string
+      franquia_member_id:
+        description: ID do membro da franquia
+        type: integer
+      id:
+        description: ID do cliente
+        type: integer
+      is_e2:
+        description: Indica se é Enigma2 (0 ou 1)
+        type: integer
+      is_isplock:
+        description: Indica se é bloqueado por ISP (0 ou 1)
+        type: integer
+      is_mag:
+        description: Indica se é dispositivo MAG (0 ou 1)
+        type: integer
+      is_restreamer:
+        description: Indica se é restreamer (0 ou 1)
+        type: integer
+      is_stalker:
+        description: Indica se é Stalker (0 ou 1)
+        type: integer
+      is_trial:
+        description: Indica se é conta de teste (0 ou 1)
+        type: integer
+      isp_desc:
+        description: Descrição do ISP
+        type: string
+      max_connections:
+        description: Máximo de conexões permitidas
+        type: integer
+      member_id:
+        description: ID do membro associado
+        type: integer
+      nome_para_aviso:
+        description: Nome para aviso
+        type: string
+      notes2:
+        description: Notas adicionais
+        type: string
+      numero_whats:
+        description: Número do WhatsApp
+        type: string
+      p2p:
+        description: Indica se é P2P (0 ou 1)
+        type: integer
+      package_id:
+        description: ID do pacote
+        type: integer
+      pair_id:
+        description: ID do par
+        type: integer
+      password:
+        description: Senha (hash)
+        type: string
+      play_token:
+        description: Token de reprodução
+        type: string
+      reseller_notes:
+        description: Notas do revendedor
+        type: string
+      root_enabled:
+        description: Indica se é root (0 ou 1)
+        type: integer
+      sobrenome_avisos:
+        description: Sobrenome para avisos
+        type: string
+      trust_renew:
+        description: Indica se a renovação é confiável
+        type: integer
+      username:
+        description: Nome de usuário
+        type: string
+      usr_device_key:
+        description: Chave do dispositivo do usuário
+        type: string
+      usr_mac:
+        description: MAC do usuário
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: suporte@example.com
+    name: Suporte
+  description: Documentação da API IPTV
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://example.com/terms/
+  title: API IPTV
+  version: "1.0"
+paths:
+  /api/clients:
+    get:
+      consumes:
+      - application/json
+      description: Retorna todos os clientes associados ao usuário autenticado
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista de clientes
+          schema:
+            items:
+              $ref: '#/definitions/models.ClientDataSwagger'
+            type: array
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno ao buscar clientes
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Lista clientes
+      tags:
+      - Clientes
+  /api/create-test:
+    post:
+      consumes:
+      - application/json
+      description: Gera um usuário e senha de teste para IPTV e retorna as credenciais.
+      parameters:
+      - description: Dados para criação do teste
+        in: body
+        name: test
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.TestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Teste criado com sucesso
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro na requisição
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Criar Teste IPTV
+      tags:
+      - Testes IPTV
+  /api/renew:
+    post:
+      consumes:
+      - application/json
+      description: Atualiza a data de expiração da conta com base no tempo selecionado.
+      parameters:
+      - description: Dados para renovação
+        in: body
+        name: renew
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.RenewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Conta renovada com sucesso
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro na requisição
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "402":
+          description: Créditos insuficientes
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Renovar Conta
+      tags:
+      - Renovação
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Autentica um usuário e retorna um token JWT se as credenciais forem
+        válidas.
+      parameters:
+      - description: Credenciais de login
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login realizado com sucesso
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro na requisição
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Credenciais inválidas
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Autenticação de Usuário
+      tags:
+      - Autenticação
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
