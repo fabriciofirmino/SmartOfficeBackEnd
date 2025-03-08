@@ -7,104 +7,105 @@ import (
 	"strings"
 )
 
-// ClientData representa um cliente no sistema
+// Estrutura para armazenar os clientes retornados
+// ClientData representa os dados do cliente para operações de banco de dados
+// swagger:model ClientData
 type ClientData struct {
-	ID                int        `json:"id"`
-	MemberID          int        `json:"member_id"`
-	Username          string     `json:"username"`
-	Password          string     `json:"password"`
-	ExpDate           NullString `json:"exp_date"`      // Alterado para `NullString`
-	AdminEnabled      NullInt64  `json:"admin_enabled"` // Alterado para `NullInt64`
-	Enabled           NullInt64  `json:"enabled"`       // Alterado para `NullInt64`
-	AdminNotes        NullString `json:"admin_notes"`
-	ResellerNotes     NullString `json:"reseller_notes"`
-	Bouquet           NullString `json:"bouquet"`
-	MaxConnections    NullInt64  `json:"max_connections"`
-	IsRestreamer      NullInt64  `json:"is_restreamer"`
-	AllowedIPs        NullString `json:"allowed_ips"`
-	AllowedUA         NullString `json:"allowed_ua"`
-	IsTrial           NullInt64  `json:"is_trial"`
-	CreatedAt         NullString `json:"created_at"`
-	CreatedBy         NullString `json:"created_by"`
-	PairID            NullInt64  `json:"pair_id"`
-	IsMag             NullInt64  `json:"is_mag"`
-	IsE2              NullInt64  `json:"is_e2"`
-	ForceServerID     NullInt64  `json:"force_server_id"`
-	IsIspLock         NullInt64  `json:"is_isplock"`
-	IspDesc           NullString `json:"isp_desc"`
-	ForcedCountry     NullString `json:"forced_country"`
-	IsStalker         NullInt64  `json:"is_stalker"`
-	BypassUA          NullString `json:"bypass_ua"`
-	AsNumber          NullString `json:"as_number"`
-	PlayToken         NullString `json:"play_token"`
-	PackageID         NullInt64  `json:"package_id"`
-	UsrMac            NullString `json:"usr_mac"`
-	UsrDeviceKey      NullString `json:"usr_device_key"`
-	Notes2            NullString `json:"notes2"`
-	RootEnabled       NullInt64  `json:"root_enabled"`
-	NumeroWhats       NullString `json:"numero_whats"`
-	NomeParaAviso     NullString `json:"nome_para_aviso"`
-	Email             NullString `json:"email"`
-	EnviarNotificacao NullString `json:"enviar_notificacao"`
-	SobrenomeAvisos   NullString `json:"sobrenome_avisos"`
-	Deleted           NullInt64  `json:"deleted"`
-	DateDeleted       NullString `json:"date_deleted"`
-	AppID             NullString `json:"app_id"`
-	TrustRenew        NullInt64  `json:"trust_renew"`
-	Franquia          NullString `json:"franquia"`
-	FranquiaMemberID  NullInt64  `json:"franquia_member_id"`
-	P2P               NullInt64  `json:"p2p"`
+	ID                int        `json:"id" example:"123"`
+	MemberID          int        `json:"member_id" example:"456"`
+	Username          string     `json:"username" example:"john_doe"`
+	Password          string     `json:"password" example:"hashed_password"`
+	ExpDate           NullString `json:"exp_date" swaggertype:"string" example:"2025-12-31T23:59:59Z"`
+	AdminEnabled      NullInt64  `json:"admin_enabled" swaggertype:"integer" example:"1"`
+	Enabled           NullInt64  `json:"enabled" swaggertype:"integer" example:"1"`
+	AdminNotes        NullString `json:"admin_notes" swaggertype:"string" example:"Notas administrativas"`
+	ResellerNotes     NullString `json:"reseller_notes" swaggertype:"string" example:"Notas do revendedor"`
+	Bouquet           NullString `json:"bouquet" swaggertype:"string" example:"Pacote Premium"`
+	MaxConnections    NullInt64  `json:"max_connections" swaggertype:"integer" example:"5"`
+	IsRestreamer      NullInt64  `json:"is_restreamer" swaggertype:"integer" example:"0"`
+	AllowedIPs        NullString `json:"allowed_ips" swaggertype:"string" example:"192.168.1.1, 10.0.0.1"`
+	AllowedUA         NullString `json:"allowed_ua" swaggertype:"string" example:"Mozilla/5.0"`
+	IsTrial           NullInt64  `json:"is_trial" swaggertype:"integer" example:"1"`
+	CreatedAt         NullString `json:"created_at" swaggertype:"string" example:"2024-03-15T14:30:00Z"`
+	CreatedBy         NullString `json:"created_by" swaggertype:"string" example:"admin"`
+	PairID            NullInt64  `json:"pair_id" swaggertype:"integer" example:"789"`
+	IsMag             NullInt64  `json:"is_mag" swaggertype:"integer" example:"0"`
+	IsE2              NullInt64  `json:"is_e2" swaggertype:"integer" example:"1"`
+	ForceServerID     NullInt64  `json:"force_server_id" swaggertype:"integer" example:"3"`
+	IsIspLock         NullInt64  `json:"is_isplock" swaggertype:"integer" example:"0"`
+	IspDesc           NullString `json:"isp_desc" swaggertype:"string" example:"Provedor XYZ"`
+	ForcedCountry     NullString `json:"forced_country" swaggertype:"string" example:"BR"`
+	IsStalker         NullInt64  `json:"is_stalker" swaggertype:"integer" example:"0"`
+	BypassUA          NullString `json:"bypass_ua" swaggertype:"string" example:"CustomUserAgent"`
+	AsNumber          NullString `json:"as_number" swaggertype:"string" example:"AS12345"`
+	PlayToken         NullString `json:"play_token" swaggertype:"string" example:"xyz123token"`
+	PackageID         NullInt64  `json:"package_id" swaggertype:"integer" example:"11"`
+	UsrMac            NullString `json:"usr_mac" swaggertype:"string" example:"00:1A:2B:3C:4D:5E"`
+	UsrDeviceKey      NullString `json:"usr_device_key" swaggertype:"string" example:"device-key-123"`
+	Notes2            NullString `json:"notes2" swaggertype:"string" example:"Notas adicionais"`
+	RootEnabled       NullInt64  `json:"root_enabled" swaggertype:"integer" example:"1"`
+	NumeroWhats       NullString `json:"numero_whats" swaggertype:"string" example:"+5511999999999"`
+	NomeParaAviso     NullString `json:"nome_para_aviso" swaggertype:"string" example:"João Silva"`
+	Email             NullString `json:"email" swaggertype:"string" example:"joao@example.com"`
+	EnviarNotificacao NullString `json:"enviar_notificacao" swaggertype:"string" example:"true"`
+	SobrenomeAvisos   NullString `json:"sobrenome_avisos" swaggertype:"string" example:"Silva"`
+	Deleted           NullInt64  `json:"deleted" swaggertype:"integer" example:"0"`
+	DateDeleted       NullString `json:"date_deleted" swaggertype:"string" example:"2024-01-01T00:00:00Z"`
+	AppID             NullString `json:"app_id" swaggertype:"string" example:"app-12345"`
+	TrustRenew        NullInt64  `json:"trust_renew" swaggertype:"integer" example:"1"`
+	Franquia          NullString `json:"franquia" swaggertype:"string" example:"Franquia ABC"`
+	FranquiaMemberID  NullInt64  `json:"franquia_member_id" swaggertype:"integer" example:"999"`
+	P2P               NullInt64  `json:"p2p" swaggertype:"integer" example:"0"`
 }
 
-// ClientDataSwagger representa o modelo para documentação no Swagger
-//
 // swagger:model
+// swagger:model ClientDataSwagger
 type ClientDataSwagger struct {
-	ID                int    `json:"id"`                 // ID do cliente
-	MemberID          int    `json:"member_id"`          // ID do membro associado
-	Username          string `json:"username"`           // Nome de usuário
-	Password          string `json:"password"`           // Senha (hash)
-	ExpDate           string `json:"exp_date"`           // Data de expiração (formato ISO 8601)
-	AdminEnabled      int    `json:"admin_enabled"`      // Conta ativa para admin (0 ou 1)
-	Enabled           int    `json:"enabled"`            // Conta ativa para o usuário (0 ou 1)
-	AdminNotes        string `json:"admin_notes"`        // Notas administrativas
-	ResellerNotes     string `json:"reseller_notes"`     // Notas do revendedor
-	Bouquet           string `json:"bouquet"`            // Pacotes assinados
-	MaxConnections    int    `json:"max_connections"`    // Máximo de conexões permitidas
-	IsRestreamer      int    `json:"is_restreamer"`      // Indica se é restreamer (0 ou 1)
-	AllowedIPs        string `json:"allowed_ips"`        // IPs permitidos
-	AllowedUA         string `json:"allowed_ua"`         // User-agents permitidos
-	IsTrial           int    `json:"is_trial"`           // Indica se é conta de teste (0 ou 1)
-	CreatedAt         string `json:"created_at"`         // Data de criação da conta
-	CreatedBy         string `json:"created_by"`         // Criado por (usuário)
-	PairID            int    `json:"pair_id"`            // ID do par
-	IsMag             int    `json:"is_mag"`             // Indica se é dispositivo MAG (0 ou 1)
-	IsE2              int    `json:"is_e2"`              // Indica se é Enigma2 (0 ou 1)
-	ForceServerID     int    `json:"force_server_id"`    // ID do servidor forçado
-	IsIspLock         int    `json:"is_isplock"`         // Indica se é bloqueado por ISP (0 ou 1)
-	IspDesc           string `json:"isp_desc"`           // Descrição do ISP
-	ForcedCountry     string `json:"forced_country"`     // País forçado
-	IsStalker         int    `json:"is_stalker"`         // Indica se é Stalker (0 ou 1)
-	BypassUA          string `json:"bypass_ua"`          // User-agent ignorado
-	AsNumber          string `json:"as_number"`          // Número do AS
-	PlayToken         string `json:"play_token"`         // Token de reprodução
-	PackageID         int    `json:"package_id"`         // ID do pacote
-	UsrMac            string `json:"usr_mac"`            // MAC do usuário
-	UsrDeviceKey      string `json:"usr_device_key"`     // Chave do dispositivo do usuário
-	Notes2            string `json:"notes2"`             // Notas adicionais
-	RootEnabled       int    `json:"root_enabled"`       // Indica se é root (0 ou 1)
-	NumeroWhats       string `json:"numero_whats"`       // Número do WhatsApp
-	NomeParaAviso     string `json:"nome_para_aviso"`    // Nome para aviso
-	Email             string `json:"email"`              // Email do usuário
-	EnviarNotificacao string `json:"enviar_notificacao"` // Indica se recebe notificações (0 ou 1)
-	SobrenomeAvisos   string `json:"sobrenome_avisos"`   // Sobrenome para avisos
-	Deleted           int    `json:"deleted"`            // Indica se foi deletado (0 ou 1)
-	DateDeleted       string `json:"date_deleted"`       // Data de exclusão
-	AppID             string `json:"app_id"`             // ID do aplicativo
-	TrustRenew        int    `json:"trust_renew"`        // Indica se a renovação é confiável
-	Franquia          string `json:"franquia"`           // Nome da franquia
-	FranquiaMemberID  int    `json:"franquia_member_id"` // ID do membro da franquia
-	P2P               int    `json:"p2p"`                // Indica se é P2P (0 ou 1)
+	ID                int    `json:"id" example:"123"`
+	MemberID          int    `json:"member_id" example:"456"`
+	Username          string `json:"username" example:"john_doe"`
+	Password          string `json:"password" example:"hashed_password"`
+	ExpDate           string `json:"exp_date" example:"2025-12-31T23:59:59Z"` // Usando string para datas
+	AdminEnabled      int    `json:"admin_enabled" example:"1"`
+	Enabled           int    `json:"enabled" example:"1"`
+	AdminNotes        string `json:"admin_notes" example:"Notas administrativas"`
+	ResellerNotes     string `json:"reseller_notes" example:"Notas do revendedor"`
+	Bouquet           string `json:"bouquet" example:"Pacote Premium"`
+	MaxConnections    int    `json:"max_connections" example:"5"`
+	IsRestreamer      int    `json:"is_restreamer" example:"0"`
+	AllowedIPs        string `json:"allowed_ips" example:"192.168.1.1, 10.0.0.1"`
+	AllowedUA         string `json:"allowed_ua" example:"Mozilla/5.0"`
+	IsTrial           int    `json:"is_trial" example:"1"`
+	CreatedAt         string `json:"created_at" example:"2024-03-15T14:30:00Z"`
+	CreatedBy         string `json:"created_by" example:"admin"`
+	PairID            int    `json:"pair_id" example:"789"`
+	IsMag             int    `json:"is_mag" example:"0"`
+	IsE2              int    `json:"is_e2" example:"1"`
+	ForceServerID     int    `json:"force_server_id" example:"3"`
+	IsIspLock         int    `json:"is_isplock" example:"0"`
+	IspDesc           string `json:"isp_desc" example:"Provedor XYZ"`
+	ForcedCountry     string `json:"forced_country" example:"BR"`
+	IsStalker         int    `json:"is_stalker" example:"0"`
+	BypassUA          string `json:"bypass_ua" example:"CustomUserAgent"`
+	AsNumber          string `json:"as_number" example:"AS12345"`
+	PlayToken         string `json:"play_token" example:"xyz123token"`
+	PackageID         int    `json:"package_id" example:"11"`
+	UsrMac            string `json:"usr_mac" example:"00:1A:2B:3C:4D:5E"`
+	UsrDeviceKey      string `json:"usr_device_key" example:"device-key-123"`
+	Notes2            string `json:"notes2" example:"Notas adicionais"`
+	RootEnabled       int    `json:"root_enabled" example:"1"`
+	NumeroWhats       string `json:"numero_whats" example:"+5511999999999"`
+	NomeParaAviso     string `json:"nome_para_aviso" example:"João Silva"`
+	Email             string `json:"email" example:"joao@example.com"`
+	EnviarNotificacao bool   `json:"enviar_notificacao" example:"true"`
+	SobrenomeAvisos   string `json:"sobrenome_avisos" example:"Silva"`
+	Deleted           int    `json:"deleted" example:"0"`
+	DateDeleted       string `json:"date_deleted" example:"2024-01-01T00:00:00Z"`
+	AppID             string `json:"app_id" example:"app-12345"`
+	TrustRenew        int    `json:"trust_renew" example:"1"`
+	Franquia          string `json:"franquia" example:"Franquia ABC"`
+	FranquiaMemberID  int    `json:"franquia_member_id" example:"999"`
+	P2P               int    `json:"p2p" example:"0"`
 }
 
 // Buscar clientes aplicando filtros opcionais

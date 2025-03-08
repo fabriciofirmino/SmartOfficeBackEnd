@@ -10,6 +10,19 @@ definitions:
     - password
     - username
     type: object
+  controllers.LoginResponse:
+    properties:
+      credits:
+        type: number
+      member_group_id:
+        type: integer
+      member_id:
+        type: integer
+      status:
+        type: integer
+      token:
+        type: string
+    type: object
   controllers.RenewRequest:
     properties:
       id_cliente:
@@ -30,142 +43,142 @@ definitions:
         description: Pode ser opcional
         type: string
     type: object
-  models.ClientDataSwagger:
+  models.ClientData:
     properties:
       admin_enabled:
-        description: Conta ativa para admin (0 ou 1)
+        example: 1
         type: integer
       admin_notes:
-        description: Notas administrativas
+        example: Notas administrativas
         type: string
       allowed_ips:
-        description: IPs permitidos
+        example: 192.168.1.1, 10.0.0.1
         type: string
       allowed_ua:
-        description: User-agents permitidos
+        example: Mozilla/5.0
         type: string
       app_id:
-        description: ID do aplicativo
+        example: app-12345
         type: string
       as_number:
-        description: Número do AS
+        example: AS12345
         type: string
       bouquet:
-        description: Pacotes assinados
+        example: Pacote Premium
         type: string
       bypass_ua:
-        description: User-agent ignorado
+        example: CustomUserAgent
         type: string
       created_at:
-        description: Data de criação da conta
+        example: "2024-03-15T14:30:00Z"
         type: string
       created_by:
-        description: Criado por (usuário)
+        example: admin
         type: string
       date_deleted:
-        description: Data de exclusão
+        example: "2024-01-01T00:00:00Z"
         type: string
       deleted:
-        description: Indica se foi deletado (0 ou 1)
+        example: 0
         type: integer
       email:
-        description: Email do usuário
+        example: joao@example.com
         type: string
       enabled:
-        description: Conta ativa para o usuário (0 ou 1)
+        example: 1
         type: integer
       enviar_notificacao:
-        description: Indica se recebe notificações (0 ou 1)
+        example: "true"
         type: string
       exp_date:
-        description: Data de expiração (formato ISO 8601)
+        example: "2025-12-31T23:59:59Z"
         type: string
       force_server_id:
-        description: ID do servidor forçado
+        example: 3
         type: integer
       forced_country:
-        description: País forçado
+        example: BR
         type: string
       franquia:
-        description: Nome da franquia
+        example: Franquia ABC
         type: string
       franquia_member_id:
-        description: ID do membro da franquia
+        example: 999
         type: integer
       id:
-        description: ID do cliente
+        example: 123
         type: integer
       is_e2:
-        description: Indica se é Enigma2 (0 ou 1)
+        example: 1
         type: integer
       is_isplock:
-        description: Indica se é bloqueado por ISP (0 ou 1)
+        example: 0
         type: integer
       is_mag:
-        description: Indica se é dispositivo MAG (0 ou 1)
+        example: 0
         type: integer
       is_restreamer:
-        description: Indica se é restreamer (0 ou 1)
+        example: 0
         type: integer
       is_stalker:
-        description: Indica se é Stalker (0 ou 1)
+        example: 0
         type: integer
       is_trial:
-        description: Indica se é conta de teste (0 ou 1)
+        example: 1
         type: integer
       isp_desc:
-        description: Descrição do ISP
+        example: Provedor XYZ
         type: string
       max_connections:
-        description: Máximo de conexões permitidas
+        example: 5
         type: integer
       member_id:
-        description: ID do membro associado
+        example: 456
         type: integer
       nome_para_aviso:
-        description: Nome para aviso
+        example: João Silva
         type: string
       notes2:
-        description: Notas adicionais
+        example: Notas adicionais
         type: string
       numero_whats:
-        description: Número do WhatsApp
+        example: "+5511999999999"
         type: string
       p2p:
-        description: Indica se é P2P (0 ou 1)
+        example: 0
         type: integer
       package_id:
-        description: ID do pacote
+        example: 11
         type: integer
       pair_id:
-        description: ID do par
+        example: 789
         type: integer
       password:
-        description: Senha (hash)
+        example: hashed_password
         type: string
       play_token:
-        description: Token de reprodução
+        example: xyz123token
         type: string
       reseller_notes:
-        description: Notas do revendedor
+        example: Notas do revendedor
         type: string
       root_enabled:
-        description: Indica se é root (0 ou 1)
+        example: 1
         type: integer
       sobrenome_avisos:
-        description: Sobrenome para avisos
+        example: Silva
         type: string
       trust_renew:
-        description: Indica se a renovação é confiável
+        example: 1
         type: integer
       username:
-        description: Nome de usuário
+        example: john_doe
         type: string
       usr_device_key:
-        description: Chave do dispositivo do usuário
+        example: device-key-123
         type: string
       usr_mac:
-        description: MAC do usuário
+        example: 00:1A:2B:3C:4D:5E
         type: string
     type: object
 host: localhost:8080
@@ -193,7 +206,7 @@ paths:
           description: Lista de clientes
           schema:
             items:
-              $ref: '#/definitions/models.ClientDataSwagger'
+              $ref: '#/definitions/models.ClientData'
             type: array
         "401":
           description: Token inválido ou não fornecido
@@ -276,7 +289,7 @@ paths:
               type: string
             type: object
         "401":
-          description: Token inválido
+          description: Token inválido ou conta bloqueada
           schema:
             additionalProperties:
               type: string
@@ -311,8 +324,7 @@ paths:
         "200":
           description: Login realizado com sucesso
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/controllers.LoginResponse'
         "400":
           description: Erro na requisição
           schema:

@@ -47,7 +47,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/models.ClientDataSwagger"
+                                "$ref": "#/definitions/models.ClientData"
                             }
                         }
                     },
@@ -177,7 +177,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Token inválido",
+                        "description": "Token inválido ou conta bloqueada",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -225,8 +225,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Login realizado com sucesso",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/controllers.LoginResponse"
                         }
                     },
                     "400": {
@@ -267,6 +266,26 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "credits": {
+                    "type": "number"
+                },
+                "member_group_id": {
+                    "type": "integer"
+                },
+                "member_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.RenewRequest": {
             "type": "object",
             "properties": {
@@ -297,188 +316,188 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ClientDataSwagger": {
+        "models.ClientData": {
             "type": "object",
             "properties": {
                 "admin_enabled": {
-                    "description": "Conta ativa para admin (0 ou 1)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 },
                 "admin_notes": {
-                    "description": "Notas administrativas",
-                    "type": "string"
+                    "type": "string",
+                    "example": "Notas administrativas"
                 },
                 "allowed_ips": {
-                    "description": "IPs permitidos",
-                    "type": "string"
+                    "type": "string",
+                    "example": "192.168.1.1, 10.0.0.1"
                 },
                 "allowed_ua": {
-                    "description": "User-agents permitidos",
-                    "type": "string"
+                    "type": "string",
+                    "example": "Mozilla/5.0"
                 },
                 "app_id": {
-                    "description": "ID do aplicativo",
-                    "type": "string"
+                    "type": "string",
+                    "example": "app-12345"
                 },
                 "as_number": {
-                    "description": "Número do AS",
-                    "type": "string"
+                    "type": "string",
+                    "example": "AS12345"
                 },
                 "bouquet": {
-                    "description": "Pacotes assinados",
-                    "type": "string"
+                    "type": "string",
+                    "example": "Pacote Premium"
                 },
                 "bypass_ua": {
-                    "description": "User-agent ignorado",
-                    "type": "string"
+                    "type": "string",
+                    "example": "CustomUserAgent"
                 },
                 "created_at": {
-                    "description": "Data de criação da conta",
-                    "type": "string"
+                    "type": "string",
+                    "example": "2024-03-15T14:30:00Z"
                 },
                 "created_by": {
-                    "description": "Criado por (usuário)",
-                    "type": "string"
+                    "type": "string",
+                    "example": "admin"
                 },
                 "date_deleted": {
-                    "description": "Data de exclusão",
-                    "type": "string"
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
                 },
                 "deleted": {
-                    "description": "Indica se foi deletado (0 ou 1)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 0
                 },
                 "email": {
-                    "description": "Email do usuário",
-                    "type": "string"
+                    "type": "string",
+                    "example": "joao@example.com"
                 },
                 "enabled": {
-                    "description": "Conta ativa para o usuário (0 ou 1)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 },
                 "enviar_notificacao": {
-                    "description": "Indica se recebe notificações (0 ou 1)",
-                    "type": "string"
+                    "type": "string",
+                    "example": "true"
                 },
                 "exp_date": {
-                    "description": "Data de expiração (formato ISO 8601)",
-                    "type": "string"
+                    "type": "string",
+                    "example": "2025-12-31T23:59:59Z"
                 },
                 "force_server_id": {
-                    "description": "ID do servidor forçado",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 3
                 },
                 "forced_country": {
-                    "description": "País forçado",
-                    "type": "string"
+                    "type": "string",
+                    "example": "BR"
                 },
                 "franquia": {
-                    "description": "Nome da franquia",
-                    "type": "string"
+                    "type": "string",
+                    "example": "Franquia ABC"
                 },
                 "franquia_member_id": {
-                    "description": "ID do membro da franquia",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 999
                 },
                 "id": {
-                    "description": "ID do cliente",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 123
                 },
                 "is_e2": {
-                    "description": "Indica se é Enigma2 (0 ou 1)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 },
                 "is_isplock": {
-                    "description": "Indica se é bloqueado por ISP (0 ou 1)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 0
                 },
                 "is_mag": {
-                    "description": "Indica se é dispositivo MAG (0 ou 1)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 0
                 },
                 "is_restreamer": {
-                    "description": "Indica se é restreamer (0 ou 1)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 0
                 },
                 "is_stalker": {
-                    "description": "Indica se é Stalker (0 ou 1)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 0
                 },
                 "is_trial": {
-                    "description": "Indica se é conta de teste (0 ou 1)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 },
                 "isp_desc": {
-                    "description": "Descrição do ISP",
-                    "type": "string"
+                    "type": "string",
+                    "example": "Provedor XYZ"
                 },
                 "max_connections": {
-                    "description": "Máximo de conexões permitidas",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 5
                 },
                 "member_id": {
-                    "description": "ID do membro associado",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 456
                 },
                 "nome_para_aviso": {
-                    "description": "Nome para aviso",
-                    "type": "string"
+                    "type": "string",
+                    "example": "João Silva"
                 },
                 "notes2": {
-                    "description": "Notas adicionais",
-                    "type": "string"
+                    "type": "string",
+                    "example": "Notas adicionais"
                 },
                 "numero_whats": {
-                    "description": "Número do WhatsApp",
-                    "type": "string"
+                    "type": "string",
+                    "example": "+5511999999999"
                 },
                 "p2p": {
-                    "description": "Indica se é P2P (0 ou 1)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 0
                 },
                 "package_id": {
-                    "description": "ID do pacote",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 11
                 },
                 "pair_id": {
-                    "description": "ID do par",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 789
                 },
                 "password": {
-                    "description": "Senha (hash)",
-                    "type": "string"
+                    "type": "string",
+                    "example": "hashed_password"
                 },
                 "play_token": {
-                    "description": "Token de reprodução",
-                    "type": "string"
+                    "type": "string",
+                    "example": "xyz123token"
                 },
                 "reseller_notes": {
-                    "description": "Notas do revendedor",
-                    "type": "string"
+                    "type": "string",
+                    "example": "Notas do revendedor"
                 },
                 "root_enabled": {
-                    "description": "Indica se é root (0 ou 1)",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 },
                 "sobrenome_avisos": {
-                    "description": "Sobrenome para avisos",
-                    "type": "string"
+                    "type": "string",
+                    "example": "Silva"
                 },
                 "trust_renew": {
-                    "description": "Indica se a renovação é confiável",
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 },
                 "username": {
-                    "description": "Nome de usuário",
-                    "type": "string"
+                    "type": "string",
+                    "example": "john_doe"
                 },
                 "usr_device_key": {
-                    "description": "Chave do dispositivo do usuário",
-                    "type": "string"
+                    "type": "string",
+                    "example": "device-key-123"
                 },
                 "usr_mac": {
-                    "description": "MAC do usuário",
-                    "type": "string"
+                    "type": "string",
+                    "example": "00:1A:2B:3C:4D:5E"
                 }
             }
         }
