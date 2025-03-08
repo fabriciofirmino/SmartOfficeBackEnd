@@ -19,7 +19,8 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		_, err := utils.ValidateToken(tokenString)
+		// 📌 Captura os três valores retornados por `ValidateToken`
+		_, _, err := utils.ValidateToken(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token inválido"})
 			c.Abort()
@@ -37,7 +38,7 @@ type User struct {
 	MemberGroupID int
 	Credits       float64
 	Status        int
-	MemeberId     int
+	MemberID      int // 🔥 Corrigido: Agora "MemberID" com "D" maiúsculo
 }
 
 // Buscar usuário pelo username
@@ -50,8 +51,9 @@ func GetUserByUsername(username string) (*User, error) {
 		WHERE username = ?
 	`
 
+	// 🔥 Corrigido: Agora `user.MemberID` (com "D" maiúsculo) corresponde ao nome da struct
 	err := config.DB.QueryRow(query, username).Scan(
-		&user.Username, &user.PasswordHash, &user.MemberGroupID, &user.Credits, &user.Status, &user.MemeberId,
+		&user.Username, &user.PasswordHash, &user.MemberGroupID, &user.Credits, &user.Status, &user.MemberID,
 	)
 
 	if err != nil {

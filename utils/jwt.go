@@ -2,50 +2,64 @@ package utils
 
 import (
 	"errors"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var secretKey = []byte("chave-secreta-super-segura")
+var secretKey = []byte("Prs5bR2t%vWT>m+?syisEh0f2h+?/CDz=sA[:Y9CSWAjdZv&oF1x8g*TT_76<QSI")
 
-// Função para gerar um token JWT
+// GenerateToken gera um token JWT com tempo de expiração definido no .env
 func GenerateToken(username string, memberID int) (string, error) {
+	expirationMinutes, err := strconv.Atoi(os.Getenv("TOKEN_EXPIRATION_MINUTES"))
+	if err != nil || expirationMinutes <= 0 {
+		expirationMinutes = 1440 // 🔥 Padrão: 24 horas (caso não tenha no .env)
+	}
+
 	claims := jwt.MapClaims{
 		"username":  username,
-		"member_id": memberID, // Agora inclui o member_id correto
-		"exp":       time.Now().Add(time.Hour * 24).Unix(),
+		"member_id": memberID,
+		"exp":       time.Now().Add(time.Duration(expirationMinutes) * time.Minute).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(secretKey)
 }
 
-// Função para validar o token JWT sem quebrar GenerateToken
-func ValidateToken(tokenString string) (jwt.MapClaims, error) {
-	// Remover "Bearer " do início do token, se existir
+// ValidateToken valida o JWT e retorna os claims + tempo restante
+func ValidateToken(tokenString string) (jwt.MapClaims, int, error) {
 	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 
-	// Parse do token JWT
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Verificar se o método de assinatura é válido
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("método de assinatura inválido")
 		}
 		return secretKey, nil
 	})
 
-	// Se o token não for válido, retorna erro
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	// Extrair claims corretamente
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
-		return nil, errors.New("token inválido")
+		return nil, 0, errors.New("token inválido")
 	}
 
-	return claims, nil
+	expTime, ok := claims["exp"].(float64)
+	if !ok {
+		return nil, 0, errors.New("token sem data de expiração")
+	}
+
+	expirationTime := time.Unix(int64(expTime), 0)
+	timeRemaining := int(time.Until(expirationTime).Minutes())
+
+	if timeRemaining <= 0 {
+		return nil, 0, errors.New("token expirado")
+	}
+
+	return claims, timeRemaining, nil
 }

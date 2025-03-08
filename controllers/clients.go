@@ -4,13 +4,14 @@ import (
 	"apiBackEnd/models"
 	"apiBackEnd/utils"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"sync"
 
 	"github.com/gin-gonic/gin"
 )
 
-// Estrutura completa para o JSON de resposta
+// Estrutura para o JSON de resposta
 type ClientResponse struct {
 	ID                int    `json:"id"`
 	MemberID          int    `json:"member_id"`
@@ -67,40 +68,44 @@ type ClientResponse struct {
 // @Security BearerAuth
 // @Accept  json
 // @Produce  json
-// @Success 200 {object} []models.ClientDataSwagger "Lista de clientes"
+// @Success 200 {object} []models.ClientData "Lista de clientes"
 // @Failure 401 {object} map[string]string "Token inválido ou não fornecido"
 // @Failure 500 {object} map[string]string "Erro interno ao buscar clientes"
 // @Router /api/clients [get]
 func GetClients(c *gin.Context) {
+	// 📌 Recuperar token do header
 	tokenString := c.GetHeader("Authorization")
 	if tokenString == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token não fornecido"})
 		return
 	}
 
-	claims, err := utils.ValidateToken(tokenString)
+	// 📌 Validar token e extrair claims
+	claims, timeRemaining, err := utils.ValidateToken(tokenString)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token inválido"})
+		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token inválido ou expirado"})
 		return
 	}
 
+	// 📌 Extrair `member_id` do token
 	memberIDFloat, exists := claims["member_id"].(float64)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "MemberID não encontrado no token"})
 		return
 	}
-
 	memberID := int(memberIDFloat)
 
-	// Capturar filtros opcionais da URL
+	// 📌 Capturar filtros opcionais da URL
 	filters := map[string]interface{}{}
 	queryParams := []string{"username", "numero_whats", "enviar_notificacao", "max_connections", "is_trial", "enabled", "admin_notes", "email", "exp_date"}
-	for _, q := range queryParams {
-		if value := c.Query(q); value != "" {
-			filters[q] = value
+
+	for _, param := range queryParams {
+		if value := c.Query(param); value != "" {
+			filters[param] = value
 		}
 	}
 
+	// 📌 Buscar clientes utilizando `GetClientsByFilters`
 	clients, err := models.GetClientsByFilters(memberID, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar clientes"})
@@ -132,28 +137,8 @@ func GetClients(c *gin.Context) {
 				AllowedUA:         NullStringToString(client.AllowedUA),
 				IsTrial:           NullIntToInt(client.IsTrial),
 				CreatedAt:         NullStringToString(client.CreatedAt),
-				CreatedBy:         NullStringToString(client.CreatedBy),
-				PairID:            NullIntToInt(client.PairID),
-				IsMag:             NullIntToInt(client.IsMag),
-				IsE2:              NullIntToInt(client.IsE2),
-				ForceServerID:     NullIntToInt(client.ForceServerID),
-				IsIspLock:         NullIntToInt(client.IsIspLock),
-				IspDesc:           NullStringToString(client.IspDesc),
-				ForcedCountry:     NullStringToString(client.ForcedCountry),
-				IsStalker:         NullIntToInt(client.IsStalker),
-				BypassUA:          NullStringToString(client.BypassUA),
-				AsNumber:          NullStringToString(client.AsNumber),
-				PlayToken:         NullStringToString(client.PlayToken),
-				PackageID:         NullIntToInt(client.PackageID),
-				UsrMac:            NullStringToString(client.UsrMac),
-				UsrDeviceKey:      NullStringToString(client.UsrDeviceKey),
-				Notes2:            NullStringToString(client.Notes2),
-				RootEnabled:       NullIntToInt(client.RootEnabled),
-				NumeroWhats:       NullStringToString(client.NumeroWhats),
-				NomeParaAviso:     NullStringToString(client.NomeParaAviso),
 				Email:             NullStringToString(client.Email),
 				EnviarNotificacao: NullStringToBool(client.EnviarNotificacao),
-				SobrenomeAvisos:   NullStringToString(client.SobrenomeAvisos),
 				Deleted:           NullIntToInt(client.Deleted),
 				DateDeleted:       NullStringToString(client.DateDeleted),
 				AppID:             NullStringToString(client.AppID),
@@ -167,8 +152,19 @@ func GetClients(c *gin.Context) {
 
 	wg.Wait() // Espera todas as goroutines terminarem
 
+	// Converter `timeRemaining` (segundos) para dias, horas, minutos e segundos
+	dias := timeRemaining / 86400
+	horas := (timeRemaining % 86400) / 3600
+	minutos := (timeRemaining % 3600) / 60
+	segundos := timeRemaining % 60
+
+	// Formatar a string de tempo restante
+	tempoRestanteFormatado := fmt.Sprintf("%d dias, %d horas, %d minutos, %d segundos", dias, horas, minutos, segundos)
+
+	// 🔹 🔥 Retorno de sucesso
 	c.JSON(http.StatusOK, gin.H{
-		"total_registros": len(responseClients),
+		"total_registros": len(clients),
+		"token_expira_em": tempoRestanteFormatado,
 		"clientes":        responseClients,
 	})
 }
@@ -191,8 +187,5 @@ func NullIntToInt(ni sql.NullInt64) int {
 
 // Converter `sql.NullString` para `bool`
 func NullStringToBool(ns sql.NullString) bool {
-	if ns.Valid {
-		return ns.String == "true" // Se for "true", retorna `true`, senão `false`
-	}
-	return false // Se for NULL, retorna `false`
+	return ns.Valid && ns.String == "true"
 }

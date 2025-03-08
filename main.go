@@ -3,6 +3,7 @@ package main
 import (
 	"apiBackEnd/config" // Certifique-se de que o nome do módulo no go.mod é "apiBackEnd"
 	_ "apiBackEnd/docs" // 🔥 Importação do Swagger
+	"apiBackEnd/middleware"
 	"apiBackEnd/routes"
 	"fmt"
 
@@ -32,6 +33,7 @@ func main() {
 
 	// Criar servidor
 	r := gin.Default()
+	r.Use(middleware.CORSMiddleware())
 	routes.SetupRoutes(r)
 
 	fmt.Println("Servidor rodando em http://localhost:8080")

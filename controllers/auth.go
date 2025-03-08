@@ -9,6 +9,7 @@ import (
 )
 
 // AuthMiddleware valida o token JWT nas rotas protegidas
+// AuthMiddleware valida o token JWT nas rotas protegidas
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
@@ -18,7 +19,8 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		_, err := utils.ValidateToken(tokenString)
+		// 📌 Capturar corretamente os três valores retornados pela função `ValidateToken`
+		_, _, err := utils.ValidateToken(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token inválido"})
 			c.Abort()
@@ -51,27 +53,30 @@ type LoginResponse struct {
 // @Accept  json
 // @Produce  json
 // @Param login body LoginRequest true "Credenciais de login"
-// @Success 200 {object} map[string]interface{} "Login realizado com sucesso"
+// @Success 200 {object} LoginResponse "Login realizado com sucesso"
 // @Failure 400 {object} map[string]string "Erro na requisição"
 // @Failure 401 {object} map[string]string "Credenciais inválidas"
 // @Router /login [post]
 func Login(c *gin.Context) {
 	var req LoginRequest
 
-	// 📌 Validação do JSON recebido
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"erro": "Dados inválidos"})
 		return
 	}
 
-	// 📌 Busca usuário no banco de dados
 	user, err := models.GetUserByUsername(req.Username)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Usuário ou senha incorretos"})
 		return
 	}
 
-	// 📌 Validação da senha com hashing correto
+	// **📌 Bloquear se a conta não estiver ativa**
+	if user.Status != 1 {
+		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Conta bloqueada. Entre em contato com o suporte."})
+		return
+	}
+
 	hashedInputPassword, err := utils.CryptPassword(req.Password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao processar senha"})
@@ -83,19 +88,19 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// 📌 Geração do token JWT
-	token, err := utils.GenerateToken(user.Username, user.MemeberId) // Passando corretamente o MemberID
+	// 📌 Gerar token com tempo de expiração configurável
+	token, err := utils.GenerateToken(user.Username, user.MemberID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao gerar token"})
 		return
 	}
 
-	// 📌 Resposta JSON para o cliente
+	// 📌 Retornar os dados do usuário no login
 	c.JSON(http.StatusOK, LoginResponse{
 		Token:         token,
 		MemberGroupID: user.MemberGroupID,
 		Credits:       user.Credits,
 		Status:        user.Status,
-		MemberID:      user.MemeberId,
+		MemberID:      user.MemberID,
 	})
 }

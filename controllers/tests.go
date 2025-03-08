@@ -60,7 +60,8 @@ func CreateTest(c *gin.Context) {
 		return
 	}
 
-	claims, err := utils.ValidateToken(tokenString)
+	// 📌 Ajuste para capturar corretamente os três valores retornados por `ValidateToken`
+	claims, _, err := utils.ValidateToken(tokenString)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token inválido"})
 		return

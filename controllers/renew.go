@@ -31,7 +31,7 @@ type RenewRequest struct {
 // @Param renew body controllers.RenewRequest true "Dados para renovação"
 // @Success 200 {object} map[string]interface{} "Conta renovada com sucesso"
 // @Failure 400 {object} map[string]string "Erro na requisição"
-// @Failure 401 {object} map[string]string "Token inválido"
+// @Failure 401 {object} map[string]string "Token inválido ou conta bloqueada"
 // @Failure 402 {object} map[string]string "Créditos insuficientes"
 // @Router /api/renew [post]
 func RenewAccount(c *gin.Context) {
@@ -42,12 +42,13 @@ func RenewAccount(c *gin.Context) {
 		return
 	}
 
-	claims, err := utils.ValidateToken(tokenString)
+	claims, timeRemaining, err := utils.ValidateToken(tokenString)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token inválido"})
 		return
 	}
 
+	// 🔹 2️⃣ Extração dos dados do token (evita consultas desnecessárias ao banco)
 	memberIDFloat, exists := claims["member_id"].(float64)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "MemberID não encontrado no token"})
@@ -55,29 +56,39 @@ func RenewAccount(c *gin.Context) {
 	}
 	memberID := int(memberIDFloat)
 
-	log.Printf("🔍 MemberID extraído do token: %d\n", memberID)
+	statusFloat, exists := claims["status"].(float64)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Status da conta não encontrado no token"})
+		return
+	}
+	status := int(statusFloat)
 
-	// 🔹 2️⃣ Ler o corpo da requisição
+	// 🔥 **Se o status for diferente de 1, bloqueia a renovação**
+	if status != 1 {
+		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Conta bloqueada para renovação"})
+		return
+	}
+
+	log.Printf("🔍 MemberID extraído do token: %d | Status: %d\n", memberID, status)
+
+	// 🔹 3️⃣ Ler o corpo da requisição
 	var req RenewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"erro": "Dados inválidos"})
 		return
 	}
 
-	// 🔹 3️⃣ Validar se o cliente pertence ao `member_id`
-	var userID, userMemberID, maxConnections int
-	var currentExpDate sql.NullInt64 // Agora armazenamos como timestamp Unix
+	// 🔹 4️⃣ Validar se o cliente pertence ao `member_id`
+	var userID, maxConnections int
+	var currentExpDate sql.NullInt64
 
-	query := `
-		SELECT id, member_id, exp_date, max_connections
-		FROM streamcreed_db.users
-		WHERE id = ? AND member_id = ?
-	`
+	query := `SELECT id, exp_date, max_connections FROM streamcreed_db.users WHERE id = ? AND member_id = ?`
+
 	log.Printf("🔍 Executando query para buscar cliente: %s\n", query)
-	err = config.DB.QueryRow(query, req.IDCliente, memberID).Scan(&userID, &userMemberID, &currentExpDate, &maxConnections)
+
+	err = config.DB.QueryRow(query, req.IDCliente, memberID).Scan(&userID, &currentExpDate, &maxConnections)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Printf("❌ Nenhum cliente encontrado para o ID %d e MemberID %d\n", req.IDCliente, memberID)
 			c.JSON(http.StatusUnauthorized, gin.H{"erro": "Cliente não pertence a este MemberID"})
 			return
 		}
@@ -86,105 +97,54 @@ func RenewAccount(c *gin.Context) {
 		return
 	}
 
-	// 🔹 4️⃣ Validar créditos do `member_id`
-	var creditosDisponiveis int
-	creditQuery := "SELECT credits FROM streamcreed_db.reg_users WHERE id = ?"
-	log.Printf("🔍 Executando query para buscar créditos: %s | Param: %d\n", creditQuery, memberID)
-
-	err = config.DB.QueryRow(creditQuery, memberID).Scan(&creditosDisponiveis)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			log.Printf("⚠️ Nenhum crédito encontrado para MemberID %d. Definindo como 0.\n", memberID)
-			creditosDisponiveis = 0
-		} else {
-			log.Printf("❌ Erro ao buscar créditos do MemberID %d: %v", memberID, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar créditos"})
-			return
-		}
-	}
-
-	log.Printf("✅ Créditos disponíveis para MemberID %d: %d\n", memberID, creditosDisponiveis)
-
-	// 🔹 5️⃣ Buscar o custo por período nas variáveis de ambiente
-	var custoPorPeriodo int
-	var diasRenovacao int
-
-	switch req.QuantidadeRenovacaoMes {
-	case 1:
-		custoPorPeriodo, _ = strconv.Atoi(os.Getenv("CREDITO_1_MES"))
-		diasRenovacao = 31
-	case 3:
-		custoPorPeriodo, _ = strconv.Atoi(os.Getenv("CREDITO_3_MESES"))
-		diasRenovacao = 93
-	case 6:
-		custoPorPeriodo, _ = strconv.Atoi(os.Getenv("CREDITO_6_MESES"))
-		diasRenovacao = 186
-	case 12:
-		custoPorPeriodo, _ = strconv.Atoi(os.Getenv("CREDITO_12_MESES"))
-		diasRenovacao = 365
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"erro": "Quantidade de meses inválida"})
+	// 🔹 5️⃣ Validar créditos disponíveis (vêm do token, evitando consulta extra)
+	creditsFloat, exists := claims["credits"].(float64)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Créditos não encontrados no token"})
 		return
 	}
+	creditosDisponiveis := int(creditsFloat)
 
-	if custoPorPeriodo == 0 {
-		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Configuração de créditos não encontrada"})
-		return
-	}
-
-	// 🔹 6️⃣ Calcular o custo total considerando `max_connections`
+	// 🔹 6️⃣ Definir custo e duração da renovação
+	diasRenovacao := req.QuantidadeRenovacaoMes * 30
+	custoPorPeriodo, _ := strconv.Atoi(os.Getenv(fmt.Sprintf("CREDITO_%d_MESES", req.QuantidadeRenovacaoMes)))
 	custoTotal := custoPorPeriodo * maxConnections
-	log.Printf("💰 Custo total para renovação (considerando conexões): %d créditos\n", custoTotal)
 
 	if creditosDisponiveis < custoTotal {
 		c.JSON(http.StatusPaymentRequired, gin.H{
 			"erro":                 "Créditos insuficientes para renovação",
 			"creditos_disponiveis": creditosDisponiveis,
 			"creditos_necessarios": custoTotal,
-			"mensagem": fmt.Sprintf(
-				"Você tem %d créditos, mas para essa renovação são necessários %d créditos. Faça uma recarga e tente novamente.",
-				creditosDisponiveis, custoTotal),
 		})
 		return
 	}
 
-	// 🔹 7️⃣ Criar transação para garantir consistência
+	// 🔹 7️⃣ Calcular nova data de expiração (sempre às 23h00)
+	now := time.Now().Unix()
+	var newExpDate time.Time
+	if currentExpDate.Valid && currentExpDate.Int64 >= now {
+		newExpDate = time.Unix(currentExpDate.Int64, 0).AddDate(0, 0, diasRenovacao)
+	} else {
+		newExpDate = time.Now().AddDate(0, 0, diasRenovacao)
+	}
+
+	newExpDate = time.Date(newExpDate.Year(), newExpDate.Month(), newExpDate.Day(), 23, 0, 0, 0, time.Local)
+	newExpDateEpoch := newExpDate.Unix()
+
+	// 🔹 8️⃣ Transação para atualização segura
 	tx, err := config.DB.Begin()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao iniciar transação"})
 		return
 	}
 
-	// 🔹 8️⃣ Calcular a nova `exp_date` em `epoch`, ajustando para sempre ser às 23h00 no timezone correto
-	now := time.Now().Unix()
-	var newExpDate time.Time
-
-	if currentExpDate.Valid && currentExpDate.Int64 >= now {
-		// 🔥 Se a data de expiração ainda for válida, soma os dias a partir dela
-		newExpDate = time.Unix(currentExpDate.Int64, 0).AddDate(0, 0, diasRenovacao)
-	} else {
-		// 🔥 Se já venceu, começa a contar a partir de agora
-		newExpDate = time.Now().AddDate(0, 0, diasRenovacao)
-	}
-
-	// 🔥 Definir o horário fixo para 23h00 no timezone local do servidor
-	location, _ := time.LoadLocation("America/Sao_Paulo") // 🔥 Ajuste para o fuso correto, se necessário
-	newExpDate = time.Date(newExpDate.Year(), newExpDate.Month(), newExpDate.Day(), 23, 0, 0, 0, location)
-
-	// Converter para Unix Timestamp (epoch)
-	newExpDateEpoch := newExpDate.Unix()
-
-	log.Printf("⏳ Nova expiração em UNIX Timestamp (23h00 horário correto): %d\n", newExpDateEpoch)
-
-	// 🔹 9️⃣ Atualizar `exp_date` no banco dentro da transação
 	_, err = tx.Exec("UPDATE streamcreed_db.users SET exp_date = ?, is_trial = '0' WHERE id = ?", newExpDateEpoch, userID)
 	if err != nil {
 		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao atualizar data de expiração"})
+		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao atualizar exp_date"})
 		return
 	}
 
-	// 🔹 🔟 Debitar créditos dentro da transação
 	_, err = tx.Exec("UPDATE streamcreed_db.reg_users SET credits = credits - ? WHERE id = ?", custoTotal, memberID)
 	if err != nil {
 		tx.Rollback()
@@ -192,19 +152,24 @@ func RenewAccount(c *gin.Context) {
 		return
 	}
 
-	// 🔹 ✅ Confirmar transação
-	err = tx.Commit()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao confirmar renovação"})
-		return
-	}
+	tx.Commit()
+	// Converter `timeRemaining` (segundos) para dias, horas, minutos e segundos
+	dias := timeRemaining / 86400
+	horas := (timeRemaining % 86400) / 3600
+	minutos := (timeRemaining % 3600) / 60
+	segundos := timeRemaining % 60
 
-	// 🔹 🔥 Retorno de sucesso
+	// Formatar a string de tempo restante
+	tempoRestanteFormatado := fmt.Sprintf("%d dias, %d horas, %d minutos, %d segundos", dias, horas, minutos, segundos)
+
+	// 🔹 ✅ Retorno da renovação
 	c.JSON(http.StatusOK, gin.H{
 		"status":             "Renovação concluída com sucesso",
 		"id_cliente":         userID,
-		"novo_exp_date":      newExpDateEpoch, // ✅ Agora está em epoch
+		"novo_exp_date":      newExpDateEpoch,
 		"creditos_gastos":    custoTotal,
 		"creditos_restantes": creditosDisponiveis - custoTotal,
+		"token_expira_em":    tempoRestanteFormatado, // 🔥 Agora formatado corretamente!
 	})
+
 }
