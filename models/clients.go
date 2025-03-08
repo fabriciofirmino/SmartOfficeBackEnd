@@ -2,59 +2,58 @@ package models
 
 import (
 	"apiBackEnd/config"
-	"database/sql"
 	"fmt"
 	"log"
 	"strings"
 )
 
-// Estrutura para armazenar os clientes retornados
+// ClientData representa um cliente no sistema
 type ClientData struct {
-	ID                int            `json:"id"`
-	MemberID          int            `json:"member_id"`
-	Username          string         `json:"username"`
-	Password          string         `json:"password"`
-	ExpDate           sql.NullString `json:"exp_date"`
-	AdminEnabled      sql.NullInt64  `json:"admin_enabled"`
-	Enabled           sql.NullInt64  `json:"enabled"`
-	AdminNotes        sql.NullString `json:"admin_notes"`
-	ResellerNotes     sql.NullString `json:"reseller_notes"`
-	Bouquet           sql.NullString `json:"bouquet"`
-	MaxConnections    sql.NullInt64  `json:"max_connections"`
-	IsRestreamer      sql.NullInt64  `json:"is_restreamer"`
-	AllowedIPs        sql.NullString `json:"allowed_ips"`
-	AllowedUA         sql.NullString `json:"allowed_ua"`
-	IsTrial           sql.NullInt64  `json:"is_trial"`
-	CreatedAt         sql.NullString `json:"created_at"`
-	CreatedBy         sql.NullString `json:"created_by"`
-	PairID            sql.NullInt64  `json:"pair_id"`
-	IsMag             sql.NullInt64  `json:"is_mag"`
-	IsE2              sql.NullInt64  `json:"is_e2"`
-	ForceServerID     sql.NullInt64  `json:"force_server_id"`
-	IsIspLock         sql.NullInt64  `json:"is_isplock"`
-	IspDesc           sql.NullString `json:"isp_desc"`
-	ForcedCountry     sql.NullString `json:"forced_country"`
-	IsStalker         sql.NullInt64  `json:"is_stalker"`
-	BypassUA          sql.NullString `json:"bypass_ua"`
-	AsNumber          sql.NullString `json:"as_number"`
-	PlayToken         sql.NullString `json:"play_token"`
-	PackageID         sql.NullInt64  `json:"package_id"`
-	UsrMac            sql.NullString `json:"usr_mac"`
-	UsrDeviceKey      sql.NullString `json:"usr_device_key"`
-	Notes2            sql.NullString `json:"notes2"`
-	RootEnabled       sql.NullInt64  `json:"root_enabled"`
-	NumeroWhats       sql.NullString `json:"numero_whats"`
-	NomeParaAviso     sql.NullString `json:"nome_para_aviso"`
-	Email             sql.NullString `json:"email"`
-	EnviarNotificacao sql.NullString `json:"enviar_notificacao"` // Alterado para `sql.NullString`
-	SobrenomeAvisos   sql.NullString `json:"sobrenome_avisos"`
-	Deleted           sql.NullInt64  `json:"deleted"`
-	DateDeleted       sql.NullString `json:"date_deleted"`
-	AppID             sql.NullString `json:"app_id"`
-	TrustRenew        sql.NullInt64  `json:"trust_renew"`
-	Franquia          sql.NullString `json:"franquia"`
-	FranquiaMemberID  sql.NullInt64  `json:"franquia_member_id"`
-	P2P               sql.NullInt64  `json:"p2p"`
+	ID                int        `json:"id"`
+	MemberID          int        `json:"member_id"`
+	Username          string     `json:"username"`
+	Password          string     `json:"password"`
+	ExpDate           NullString `json:"exp_date"`      // Alterado para `NullString`
+	AdminEnabled      NullInt64  `json:"admin_enabled"` // Alterado para `NullInt64`
+	Enabled           NullInt64  `json:"enabled"`       // Alterado para `NullInt64`
+	AdminNotes        NullString `json:"admin_notes"`
+	ResellerNotes     NullString `json:"reseller_notes"`
+	Bouquet           NullString `json:"bouquet"`
+	MaxConnections    NullInt64  `json:"max_connections"`
+	IsRestreamer      NullInt64  `json:"is_restreamer"`
+	AllowedIPs        NullString `json:"allowed_ips"`
+	AllowedUA         NullString `json:"allowed_ua"`
+	IsTrial           NullInt64  `json:"is_trial"`
+	CreatedAt         NullString `json:"created_at"`
+	CreatedBy         NullString `json:"created_by"`
+	PairID            NullInt64  `json:"pair_id"`
+	IsMag             NullInt64  `json:"is_mag"`
+	IsE2              NullInt64  `json:"is_e2"`
+	ForceServerID     NullInt64  `json:"force_server_id"`
+	IsIspLock         NullInt64  `json:"is_isplock"`
+	IspDesc           NullString `json:"isp_desc"`
+	ForcedCountry     NullString `json:"forced_country"`
+	IsStalker         NullInt64  `json:"is_stalker"`
+	BypassUA          NullString `json:"bypass_ua"`
+	AsNumber          NullString `json:"as_number"`
+	PlayToken         NullString `json:"play_token"`
+	PackageID         NullInt64  `json:"package_id"`
+	UsrMac            NullString `json:"usr_mac"`
+	UsrDeviceKey      NullString `json:"usr_device_key"`
+	Notes2            NullString `json:"notes2"`
+	RootEnabled       NullInt64  `json:"root_enabled"`
+	NumeroWhats       NullString `json:"numero_whats"`
+	NomeParaAviso     NullString `json:"nome_para_aviso"`
+	Email             NullString `json:"email"`
+	EnviarNotificacao NullString `json:"enviar_notificacao"`
+	SobrenomeAvisos   NullString `json:"sobrenome_avisos"`
+	Deleted           NullInt64  `json:"deleted"`
+	DateDeleted       NullString `json:"date_deleted"`
+	AppID             NullString `json:"app_id"`
+	TrustRenew        NullInt64  `json:"trust_renew"`
+	Franquia          NullString `json:"franquia"`
+	FranquiaMemberID  NullInt64  `json:"franquia_member_id"`
+	P2P               NullInt64  `json:"p2p"`
 }
 
 // ClientDataSwagger representa o modelo para documentação no Swagger

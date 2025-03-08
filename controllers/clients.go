@@ -3,7 +3,6 @@ package controllers
 import (
 	"apiBackEnd/models"
 	"apiBackEnd/utils"
-	"database/sql"
 	"fmt"
 	"net/http"
 	"sync"
@@ -137,8 +136,28 @@ func GetClients(c *gin.Context) {
 				AllowedUA:         NullStringToString(client.AllowedUA),
 				IsTrial:           NullIntToInt(client.IsTrial),
 				CreatedAt:         NullStringToString(client.CreatedAt),
+				CreatedBy:         NullStringToString(client.CreatedBy),
+				PairID:            NullIntToInt(client.PairID),
+				IsMag:             NullIntToInt(client.IsMag),
+				IsE2:              NullIntToInt(client.IsE2),
+				ForceServerID:     NullIntToInt(client.ForceServerID),
+				IsIspLock:         NullIntToInt(client.IsIspLock),
+				IspDesc:           NullStringToString(client.IspDesc),
+				ForcedCountry:     NullStringToString(client.ForcedCountry),
+				IsStalker:         NullIntToInt(client.IsStalker),
+				BypassUA:          NullStringToString(client.BypassUA),
+				AsNumber:          NullStringToString(client.AsNumber),
+				PlayToken:         NullStringToString(client.PlayToken),
+				PackageID:         NullIntToInt(client.PackageID),
+				UsrMac:            NullStringToString(client.UsrMac),
+				UsrDeviceKey:      NullStringToString(client.UsrDeviceKey),
+				Notes2:            NullStringToString(client.Notes2),
+				RootEnabled:       NullIntToInt(client.RootEnabled),
+				NumeroWhats:       NullStringToString(client.NumeroWhats),
+				NomeParaAviso:     NullStringToString(client.NomeParaAviso),
 				Email:             NullStringToString(client.Email),
 				EnviarNotificacao: NullStringToBool(client.EnviarNotificacao),
+				SobrenomeAvisos:   NullStringToString(client.SobrenomeAvisos),
 				Deleted:           NullIntToInt(client.Deleted),
 				DateDeleted:       NullStringToString(client.DateDeleted),
 				AppID:             NullStringToString(client.AppID),
@@ -169,23 +188,23 @@ func GetClients(c *gin.Context) {
 	})
 }
 
-// Converter `sql.NullString` para string normal
-func NullStringToString(ns sql.NullString) string {
+// Converter `models.NullString` para string normal
+func NullStringToString(ns models.NullString) string {
 	if ns.Valid {
 		return ns.String
 	}
 	return ""
 }
 
-// Converter `sql.NullInt64` para int normal
-func NullIntToInt(ni sql.NullInt64) int {
+// Converter `models.NullInt64` para int normal
+func NullIntToInt(ni models.NullInt64) int {
 	if ni.Valid {
 		return int(ni.Int64)
 	}
 	return 0
 }
 
-// Converter `sql.NullString` para `bool`
-func NullStringToBool(ns sql.NullString) bool {
+// Converter `models.NullString` para `bool`
+func NullStringToBool(ns models.NullString) bool {
 	return ns.Valid && ns.String == "true"
 }
