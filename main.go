@@ -6,8 +6,10 @@ import (
 	"apiBackEnd/middleware"
 	"apiBackEnd/routes"
 	"fmt"
+	"log"
 
 	"github.com/gin-gonic/gin" // ✅ Correto
+	"github.com/joho/godotenv"
 )
 
 // @title API IPTV
@@ -28,8 +30,13 @@ import (
 // @in header
 // @name Authorization
 func main() {
+	// Carregar variáveis de ambiente
+	if err := godotenv.Load(); err != nil {
+		log.Println("⚠️ Erro ao carregar .env (seguindo com valores padrão)")
+	}
 	// Conectar ao banco de dados
 	config.ConnectDB()
+	config.InitRedis()
 
 	// Criar servidor
 	r := gin.Default()
