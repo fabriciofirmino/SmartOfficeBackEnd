@@ -30,5 +30,7 @@ func SetupRoutes(r *gin.Engine) {
 
 		// 📌 Rota de renovação de conta
 		protected.POST("/renew", controllers.RenewAccount)
+		protected.GET("/credits", controllers.GetCredits)
+
 	}
 }

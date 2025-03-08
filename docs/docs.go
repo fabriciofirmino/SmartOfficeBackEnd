@@ -130,6 +130,50 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/credits": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna o total de créditos do usuário autenticado e o tempo restante do token em segundos.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Créditos"
+                ],
+                "summary": "Obtém créditos atualizados e tempo restante do token",
+                "responses": {
+                    "200": {
+                        "description": "Dados de créditos e tempo restante",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Token inválido ou expirado",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao buscar créditos",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/renew": {
             "post": {
                 "security": [

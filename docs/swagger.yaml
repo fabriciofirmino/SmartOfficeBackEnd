@@ -262,6 +262,35 @@ paths:
       summary: Criar Teste IPTV
       tags:
       - Testes IPTV
+  /api/credits:
+    get:
+      description: Retorna o total de créditos do usuário autenticado e o tempo restante
+        do token em segundos.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Dados de créditos e tempo restante
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Token inválido ou expirado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro ao buscar créditos
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obtém créditos atualizados e tempo restante do token
+      tags:
+      - Créditos
   /api/renew:
     post:
       consumes:
