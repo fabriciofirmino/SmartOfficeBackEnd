@@ -1,5 +1,16 @@
 basePath: /
 definitions:
+  controllers.DashboardResponse:
+    properties:
+      totalClientes:
+        type: integer
+      totalClientesRevenda:
+        type: integer
+      totalTestesAtivos:
+        type: integer
+      totalVencido:
+        type: integer
+    type: object
   controllers.LoginRequest:
     properties:
       password:
@@ -291,6 +302,33 @@ paths:
       summary: Obtém créditos atualizados e tempo restante do token
       tags:
       - Créditos
+  /api/dashboard:
+    get:
+      description: Retorna os totais de clientes e testes ativos
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Dados do dashboard
+          schema:
+            $ref: '#/definitions/controllers.DashboardResponse'
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obtém os dados do dashboard
+      tags:
+      - Dashboard
   /api/details-error/{id_usuario}:
     get:
       consumes:

@@ -174,6 +174,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna os totais de clientes e testes ativos",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Obtém os dados do dashboard",
+                "responses": {
+                    "200": {
+                        "description": "Dados do dashboard",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DashboardResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Token inválido",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/details-error/{id_usuario}": {
             "get": {
                 "security": [
@@ -412,6 +455,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "controllers.DashboardResponse": {
+            "type": "object",
+            "properties": {
+                "totalClientes": {
+                    "type": "integer"
+                },
+                "totalClientesRevenda": {
+                    "type": "integer"
+                },
+                "totalTestesAtivos": {
+                    "type": "integer"
+                },
+                "totalVencido": {
+                    "type": "integer"
+                }
+            }
+        },
         "controllers.LoginRequest": {
             "type": "object",
             "required": [
