@@ -16,6 +16,7 @@ func SetupRoutes(r *gin.Engine) {
 
 	// 📌 Rota de autenticação
 	r.POST("/login", controllers.Login)
+	r.POST("/logout", controllers.Logout)
 
 	// 📌 Grupo de rotas protegidas
 	protected := r.Group("/api")

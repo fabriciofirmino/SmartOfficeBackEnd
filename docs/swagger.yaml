@@ -369,6 +369,31 @@ paths:
       summary: Autenticação de Usuário
       tags:
       - Autenticação
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: Remove o token ativo do usuário, invalidando sua sessão.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout realizado com sucesso
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido ou não autorizado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout do Usuário
+      tags:
+      - Logout
 securityDefinitions:
   BearerAuth:
     in: header

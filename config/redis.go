@@ -14,6 +14,7 @@ var RedisClient *redis.Client
 func InitRedis() {
 	RedisClient = redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_HOST"),     // Exemplo: "localhost:6379"
+		Username: os.Getenv("REDIS_USER"),     // Exemplo: "admin" (usuário configurado)
 		Password: os.Getenv("REDIS_PASSWORD"), // Se não tiver senha, deixe ""
 		DB:       0,
 	})
