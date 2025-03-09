@@ -28,7 +28,7 @@ func SetupRoutes(r *gin.Engine) {
 
 		// 📌 Rota de criação de testes IPTV
 		protected.POST("/create-test", controllers.CreateTest)
-
+		protected.GET("/details-error/:id_usuario", controllers.GetUserErrors)
 		// 📌 Rota de renovação de conta
 		protected.POST("/renew", controllers.RenewAccount)
 		protected.GET("/credits", controllers.GetCredits)

@@ -291,6 +291,57 @@ paths:
       summary: Obtém créditos atualizados e tempo restante do token
       tags:
       - Créditos
+  /api/details-error/{id_usuario}:
+    get:
+      consumes:
+      - application/json
+      description: Retorna os erros registrados na conta de um usuário, incluindo
+        IP, dispositivo e motivo do erro.
+      parameters:
+      - description: ID do usuário
+        in: path
+        name: id_usuario
+        required: true
+        type: integer
+      - description: 'Número de registros por página (padrão: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Número da página (padrão: 1)'
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista paginada de erros do usuário
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Nenhum erro encontrado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Detalhes dos erros do usuário com paginação
+      tags:
+      - Erros
   /api/renew:
     post:
       consumes:
