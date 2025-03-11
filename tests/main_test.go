@@ -1,4 +1,4 @@
-package main
+package tests
 
 import (
 	"apiBackEnd/config"
@@ -6,12 +6,12 @@ import (
 	"apiBackEnd/routes"
 	"log"
 	"os"
+	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
-// SetupServer inicializa e retorna o router do Gin (para uso nos testes)
 func SetupServer() *gin.Engine {
 	// Carregar variáveis de ambiente
 	if err := godotenv.Load(); err != nil {
@@ -30,13 +30,20 @@ func SetupServer() *gin.Engine {
 	return r
 }
 
-func main() {
-	// Inicializar o servidor real
-	r := SetupServer()
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080" // Porta padrão
+// TestMain inicializa as configurações antes dos testes
+func TestMain(m *testing.M) {
+	log.Println("🔧 Inicializando ambiente de testes...")
+
+	if err := godotenv.Load(); err != nil {
+		log.Println("⚠️ Erro ao carregar .env (seguindo com valores padrão)")
 	}
-	log.Printf("🚀 Servidor rodando na porta %s", port)
-	r.Run(":" + port)
+
+	log.Println("✅ Testes prontos para rodar...")
+	exitCode := m.Run()
+
+	// 🔹 Exibir resumo final
+	printTestSummary()
+
+	log.Println("✅ Finalizando os testes...")
+	os.Exit(exitCode)
 }
