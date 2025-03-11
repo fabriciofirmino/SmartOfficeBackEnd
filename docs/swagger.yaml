@@ -237,7 +237,7 @@ paths:
       consumes:
       - application/json
       description: Retorna uma lista de clientes paginada e filtrada para uso em DataTables,
-        associados ao member_id do token.
+        associados ao member_id do token. Agora inclui status online.
       parameters:
       - description: 'Número da página (padrão: 1)'
         in: query
@@ -251,6 +251,11 @@ paths:
         in: query
         name: search
         type: string
+      - description: Filtrar usuários online (true para listar apenas online, false
+          para todos)
+        in: query
+        name: online
+        type: boolean
       produces:
       - application/json
       responses:

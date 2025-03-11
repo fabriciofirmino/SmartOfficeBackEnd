@@ -74,7 +74,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retorna uma lista de clientes paginada e filtrada para uso em DataTables, associados ao member_id do token.",
+                "description": "Retorna uma lista de clientes paginada e filtrada para uso em DataTables, associados ao member_id do token. Agora inclui status online.",
                 "consumes": [
                     "application/json"
                 ],
@@ -102,6 +102,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Termo de pesquisa para filtrar por username ou reseller_notes",
                         "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filtrar usuários online (true para listar apenas online, false para todos)",
+                        "name": "online",
                         "in": "query"
                     }
                 ],

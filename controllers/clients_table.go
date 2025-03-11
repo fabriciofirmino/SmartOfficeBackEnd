@@ -4,16 +4,16 @@ import (
 	"apiBackEnd/config"
 	"apiBackEnd/models"
 	"apiBackEnd/utils"
-	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-// GetClientsTable retorna clientes paginados e filtrados para o DataTable
+// GetClientsTable retorna clientes paginados e filtrados para o DataTable, incluindo status online
 // @Summary Retorna clientes paginados e filtrados
-// @Description Retorna uma lista de clientes paginada e filtrada para uso em DataTables, associados ao member_id do token.
+// @Description Retorna uma lista de clientes paginada e filtrada para uso em DataTables, associados ao member_id do token. Agora inclui status online.
 // @Tags ClientsTable
 // @Security BearerAuth
 // @Accept json
@@ -21,12 +21,11 @@ import (
 // @Param page query int false "Número da página (padrão: 1)"
 // @Param limit query int false "Limite de registros por página (padrão: 10)"
 // @Param search query string false "Termo de pesquisa para filtrar por username ou reseller_notes"
+// @Param online query bool false "Filtrar usuários online (true para listar apenas online, false para todos)"
 // @Success 200 {object} map[string]interface{} "Retorna a lista de clientes paginada e informações de paginação"
 // @Failure 401 {object} map[string]string "Token inválido ou não fornecido"
 // @Failure 500 {object} map[string]string "Erro interno ao buscar ou processar os dados"
 // @Router /api/clients-table [get]
-// GetClientsTable retorna clientes paginados e filtrados para o DataTable
-// GetClientsTable retorna clientes paginados e filtrados para o DataTable
 func GetClientsTable(c *gin.Context) {
 	// 📌 Extrair `member_id` do token
 	tokenString := c.GetHeader("Authorization")
@@ -48,6 +47,9 @@ func GetClientsTable(c *gin.Context) {
 	}
 	memberID := int(memberIDFloat) // 🔹 Converte para inteiro
 
+	// 📌 Obtém o parâmetro `online` (true/false)
+	onlineFilter, _ := strconv.ParseBool(c.DefaultQuery("online", "false")) // ✅ Converte para bool
+
 	// 📌 Parâmetros de paginação e pesquisa
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
@@ -58,6 +60,83 @@ func GetClientsTable(c *gin.Context) {
 	}
 	if limit < 1 {
 		limit = 20
+	}
+
+	offset := (page - 1) * limit
+
+	// 📌 Obtém status online de todos os usuários do membro em **uma única consulta**
+	onlineStatuses, err := getAllUsersOnlineStatus(memberID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar status online"})
+		return
+	}
+
+	// 📌 Consulta base (Filtrando pelo `member_id`)
+	query := `SELECT id, username, password, exp_date, enabled, admin_enabled, max_connections, created_at, reseller_notes, is_trial 
+			FROM users WHERE member_id = ?`
+	var args []interface{}
+	args = append(args, memberID) // 🔹 Sempre filtra pelo `member_id`
+
+	// 📌 Adiciona filtro de pesquisa se necessário
+	if search != "" {
+		query += ` AND (username LIKE ? OR reseller_notes LIKE ?)`
+		args = append(args, "%"+search+"%", "%"+search+"%")
+	}
+
+	// 📌 Paginação
+	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := config.DB.Query(query, args...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar clientes"})
+		return
+	}
+	defer rows.Close()
+
+	var clients []models.ClientTableData
+	for rows.Next() {
+		var client models.ClientTableData
+		if err := rows.Scan(
+			&client.ID, &client.Username, &client.Password, &client.ExpDate, &client.Enabled,
+			&client.AdminEnabled, &client.MaxConnections, &client.CreatedAt, &client.ResellerNotes, &client.IsTrial,
+		); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao processar os dados"})
+			return
+		}
+
+		// 📌 Associa o status online ao cliente (se houver)
+		if status, exists := onlineStatuses[client.ID]; exists {
+			client.Online = map[string]interface{}{
+				"username":            status.Username,
+				"stream_display_name": status.StreamDisplayName,
+				"date_start":          status.DateStart,
+				"tempo_online":        status.TempoOnline,
+				"user_agent":          status.UserAgent,
+				"user_ip":             status.UserIP,
+				"container":           status.Container,
+				"geoip_country_code":  status.GeoIPCountryCode,
+				"isp":                 status.ISP,
+				"city":                status.City,
+				"divergence":          status.Divergence,
+				"stream_icon":         status.StreamIcon,
+			}
+		} else {
+			client.Online = map[string]interface{}{} // 🔹 Retorna `{}` se não estiver online
+		}
+
+		clients = append(clients, client)
+	}
+
+	// 📌 Se `online=true`, filtra apenas usuários online
+	if onlineFilter {
+		filteredClients := []models.ClientTableData{}
+		for _, client := range clients {
+			if _, exists := onlineStatuses[client.ID]; exists {
+				filteredClients = append(filteredClients, client)
+			}
+		}
+		clients = filteredClients // 🔹 Atualiza lista de clientes apenas com online
 	}
 
 	// 📌 Contagem total de registros filtrados pelo `member_id`
@@ -71,84 +150,9 @@ func GetClientsTable(c *gin.Context) {
 		countArgs = append(countArgs, "%"+search+"%", "%"+search+"%")
 	}
 
-	err = config.DB.QueryRow(countQuery, countArgs...).Scan(&total)
-	if err != nil {
-		fmt.Println("❌ Erro ao contar registros:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao contar registros"})
-		return
-	}
+	config.DB.QueryRow(countQuery, countArgs...).Scan(&total)
 
-	// 📌 Calcula total de páginas corretamente
-	totalPages := (total + limit - 1) / limit
-
-	// **🔹 Debug para verificar os cálculos**
-	//fmt.Println("📊 DEBUG PAGINAÇÃO:")
-	//fmt.Println("🔹 Total de registros:", total)
-	//fmt.Println("🔹 Limite por página:", limit)
-	//fmt.Println("🔹 Total de páginas calculadas:", totalPages)
-	//fmt.Println("🔹 Página solicitada:", page)
-
-	// **🔹 Ajuste da página para evitar erro**
-	if totalPages == 0 {
-		totalPages = 1 // Evita divisão por zero
-	}
-	if page > totalPages {
-		page = totalPages // 🔹 Ajusta para última página disponível
-	}
-
-	offset := (page - 1) * limit
-	if offset < 0 {
-		offset = 0
-	}
-
-	fmt.Println("🔹 Offset calculado:", offset) // Verificando o valor final de offset
-
-	// 📌 Consulta base (Filtrando pelo `member_id`)
-	query := `SELECT id, username, password, exp_date, enabled, admin_enabled, max_connections, created_at, reseller_notes, is_trial 
-			  FROM users WHERE member_id = ?`
-	var args []interface{}
-	args = append(args, memberID) // 🔹 Garante que apenas os clientes desse membro são retornados
-
-	// 📌 Adiciona filtro de pesquisa se necessário
-	if search != "" {
-		query += ` AND (username LIKE ? OR reseller_notes LIKE ?)`
-		args = append(args, "%"+search+"%", "%"+search+"%")
-	}
-
-	// 📌 Paginação segura
-	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-	args = append(args, limit, offset)
-
-	rows, err := config.DB.Query(query, args...)
-	if err != nil {
-		fmt.Println("❌ Erro ao buscar clientes:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar clientes"})
-		return
-	}
-	defer rows.Close()
-
-	var clients []models.ClientTableData
-	for rows.Next() {
-		var client models.ClientTableData
-		if err := rows.Scan(
-			&client.ID, &client.Username, &client.Password, &client.ExpDate, &client.Enabled,
-			&client.AdminEnabled, &client.MaxConnections, &client.CreatedAt, &client.ResellerNotes, &client.IsTrial,
-		); err != nil {
-			fmt.Println("❌ Erro ao processar os dados:", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao processar os dados"})
-			return
-		}
-
-		// 📌 Convertendo NULL para string vazia
-		if !client.ExpDate.Valid {
-			client.ExpDate.String = ""
-		}
-		if !client.ResellerNotes.Valid {
-			client.ResellerNotes.String = ""
-		}
-
-		clients = append(clients, client)
-	}
+	totalPages := (total + limit - 1) / limit // 🔹 Calcula total de páginas
 
 	// 📌 Retorno formatado
 	c.JSON(http.StatusOK, gin.H{
@@ -157,4 +161,56 @@ func GetClientsTable(c *gin.Context) {
 		"total_registros": total,
 		"clientes":        clients,
 	})
+}
+
+// getAllUsersOnlineStatus busca o status online de todos os clientes do membro
+func getAllUsersOnlineStatus(memberID int) (map[int]models.OnlineStatusData, error) {
+	query := "CALL getUserOnlineStatus(0, ?);"
+
+	// 📡 Log da query sendo executada
+	//log.Printf("📡 DEBUG: Executando Query: %s | Params: (0, %d)", query, memberID)
+
+	rows, err := config.DB.Query(query, memberID)
+	if err != nil {
+		log.Printf("❌ ERRO ao executar a procedure: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	onlineUsers := make(map[int]models.OnlineStatusData)
+
+	for rows.Next() {
+		var onlineData models.OnlineStatusData
+
+		err := rows.Scan(
+			&onlineData.Id,
+			&onlineData.Username,
+			&onlineData.StreamDisplayName,
+			&onlineData.DateStart,
+			&onlineData.TempoOnline,
+			&onlineData.UserAgent,
+			&onlineData.UserIP,
+			&onlineData.Container,
+			&onlineData.GeoIPCountryCode,
+			&onlineData.ISP,
+			&onlineData.City,
+			&onlineData.Divergence,
+			&onlineData.StreamIcon,
+		)
+
+		if err != nil {
+			log.Printf("❌ ERRO ao escanear os dados retornados: %v", err)
+			return nil, err
+		}
+
+		// 📡 Log de cada usuário online retornado
+		//log.Printf("✅ Usuário Online Carregado: ID %d | Canal: %s | IP: %s", onlineData.Id, onlineData.StreamDisplayName, onlineData.UserIP)
+
+		onlineUsers[onlineData.Id] = onlineData
+	}
+
+	// 📡 Log final do total de usuários online carregados
+	//log.Printf("🔍 Total de usuários online carregados: %d", len(onlineUsers))
+
+	return onlineUsers, nil
 }
