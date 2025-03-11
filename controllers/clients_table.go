@@ -12,6 +12,21 @@ import (
 )
 
 // GetClientsTable retorna clientes paginados e filtrados para o DataTable
+// @Summary Retorna clientes paginados e filtrados
+// @Description Retorna uma lista de clientes paginada e filtrada para uso em DataTables, associados ao member_id do token.
+// @Tags ClientsTable
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param page query int false "Número da página (padrão: 1)"
+// @Param limit query int false "Limite de registros por página (padrão: 10)"
+// @Param search query string false "Termo de pesquisa para filtrar por username ou reseller_notes"
+// @Success 200 {object} map[string]interface{} "Retorna a lista de clientes paginada e informações de paginação"
+// @Failure 401 {object} map[string]string "Token inválido ou não fornecido"
+// @Failure 500 {object} map[string]string "Erro interno ao buscar ou processar os dados"
+// @Router /api/clients-table [get]
+// GetClientsTable retorna clientes paginados e filtrados para o DataTable
+// GetClientsTable retorna clientes paginados e filtrados para o DataTable
 func GetClientsTable(c *gin.Context) {
 	// 📌 Extrair `member_id` do token
 	tokenString := c.GetHeader("Authorization")
