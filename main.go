@@ -11,6 +11,19 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// @title API IPTV
+// @version 1.0
+// @description Documentação da API IPTV
+
+// @contact.name Suporte
+// @contact.email suporte@example.com
+
+// @host localhost:8080
+// @BasePath /
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 // SetupServer inicializa e retorna o router do Gin (para uso nos testes)
 func SetupServer() *gin.Engine {
 	// Carregar variáveis de ambiente

@@ -198,10 +198,6 @@ info:
     email: suporte@example.com
     name: Suporte
   description: Documentação da API IPTV
-  license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
-  termsOfService: http://example.com/terms/
   title: API IPTV
   version: "1.0"
 paths:
@@ -236,6 +232,50 @@ paths:
       summary: Lista clientes
       tags:
       - Clientes
+  /api/clients-table:
+    get:
+      consumes:
+      - application/json
+      description: Retorna uma lista de clientes paginada e filtrada para uso em DataTables,
+        associados ao member_id do token.
+      parameters:
+      - description: 'Número da página (padrão: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Limite de registros por página (padrão: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: Termo de pesquisa para filtrar por username ou reseller_notes
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Retorna a lista de clientes paginada e informações de paginação
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno ao buscar ou processar os dados
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Retorna clientes paginados e filtrados
+      tags:
+      - ClientsTable
   /api/create-test:
     post:
       consumes:
