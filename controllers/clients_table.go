@@ -4,26 +4,13 @@ import (
 	"apiBackEnd/config"
 	"apiBackEnd/models"
 	"apiBackEnd/utils"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-// GetClientsTable retorna clientes paginados e filtrados para o DataTable
-// @Summary Retorna clientes paginados e filtrados
-// @Description Retorna uma lista de clientes paginada e filtrada para uso em DataTables, associados ao member_id do token.
-// @Tags ClientsTable
-// @Security BearerAuth
-// @Accept json
-// @Produce json
-// @Param page query int false "Número da página (padrão: 1)"
-// @Param limit query int false "Limite de registros por página (padrão: 10)"
-// @Param search query string false "Termo de pesquisa para filtrar por username ou reseller_notes"
-// @Success 200 {object} map[string]interface{} "Retorna a lista de clientes paginada e informações de paginação"
-// @Failure 401 {object} map[string]string "Token inválido ou não fornecido"
-// @Failure 500 {object} map[string]string "Erro interno ao buscar ou processar os dados"
-// @Router /api/clients-table [get]
 // GetClientsTable retorna clientes paginados e filtrados para o DataTable
 func GetClientsTable(c *gin.Context) {
 	// 📌 Extrair `member_id` do token
@@ -58,7 +45,48 @@ func GetClientsTable(c *gin.Context) {
 		limit = 20
 	}
 
+	// 📌 Contagem total de registros filtrados pelo `member_id`
+	var total int
+	countQuery := `SELECT COUNT(*) FROM users WHERE member_id = ?`
+	countArgs := []interface{}{memberID}
+
+	// 📌 Aplica filtro de pesquisa na contagem
+	if search != "" {
+		countQuery += ` AND (username LIKE ? OR reseller_notes LIKE ?)`
+		countArgs = append(countArgs, "%"+search+"%", "%"+search+"%")
+	}
+
+	err = config.DB.QueryRow(countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		fmt.Println("❌ Erro ao contar registros:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao contar registros"})
+		return
+	}
+
+	// 📌 Calcula total de páginas corretamente
+	totalPages := (total + limit - 1) / limit
+
+	// **🔹 Debug para verificar os cálculos**
+	//fmt.Println("📊 DEBUG PAGINAÇÃO:")
+	//fmt.Println("🔹 Total de registros:", total)
+	//fmt.Println("🔹 Limite por página:", limit)
+	//fmt.Println("🔹 Total de páginas calculadas:", totalPages)
+	//fmt.Println("🔹 Página solicitada:", page)
+
+	// **🔹 Ajuste da página para evitar erro**
+	if totalPages == 0 {
+		totalPages = 1 // Evita divisão por zero
+	}
+	if page > totalPages {
+		page = totalPages // 🔹 Ajusta para última página disponível
+	}
+
 	offset := (page - 1) * limit
+	if offset < 0 {
+		offset = 0
+	}
+
+	fmt.Println("🔹 Offset calculado:", offset) // Verificando o valor final de offset
 
 	// 📌 Consulta base (Filtrando pelo `member_id`)
 	query := `SELECT id, username, password, exp_date, enabled, admin_enabled, max_connections, created_at, reseller_notes, is_trial 
@@ -72,12 +100,13 @@ func GetClientsTable(c *gin.Context) {
 		args = append(args, "%"+search+"%", "%"+search+"%")
 	}
 
-	// 📌 Paginação
+	// 📌 Paginação segura
 	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
 	rows, err := config.DB.Query(query, args...)
 	if err != nil {
+		fmt.Println("❌ Erro ao buscar clientes:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar clientes"})
 		return
 	}
@@ -90,26 +119,21 @@ func GetClientsTable(c *gin.Context) {
 			&client.ID, &client.Username, &client.Password, &client.ExpDate, &client.Enabled,
 			&client.AdminEnabled, &client.MaxConnections, &client.CreatedAt, &client.ResellerNotes, &client.IsTrial,
 		); err != nil {
+			fmt.Println("❌ Erro ao processar os dados:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao processar os dados"})
 			return
 		}
+
+		// 📌 Convertendo NULL para string vazia
+		if !client.ExpDate.Valid {
+			client.ExpDate.String = ""
+		}
+		if !client.ResellerNotes.Valid {
+			client.ResellerNotes.String = ""
+		}
+
 		clients = append(clients, client)
 	}
-
-	// 📌 Contagem total de registros filtrados pelo `member_id`
-	var total int
-	countQuery := `SELECT COUNT(*) FROM users WHERE member_id = ?`
-	countArgs := []interface{}{memberID}
-
-	// 📌 Aplica filtro de pesquisa na contagem
-	if search != "" {
-		countQuery += ` AND (username LIKE ? OR reseller_notes LIKE ?)`
-		countArgs = append(countArgs, "%"+search+"%", "%"+search+"%")
-	}
-
-	config.DB.QueryRow(countQuery, countArgs...).Scan(&total)
-
-	totalPages := (total + limit - 1) / limit // 🔹 Calcula total de páginas
 
 	// 📌 Retorno formatado
 	c.JSON(http.StatusOK, gin.H{
