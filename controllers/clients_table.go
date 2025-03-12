@@ -83,6 +83,9 @@ func GetClientsTable(c *gin.Context) {
 		args = append(args, "%"+search+"%", "%"+search+"%")
 	}
 
+	// 📌 Ordenação antes da paginação
+	query += " ORDER BY created_at DESC"
+
 	// 📌 Executa busca de **todos os usuários**, sem paginação inicial
 	rows, err := config.DB.Query(query, args...)
 	if err != nil {
