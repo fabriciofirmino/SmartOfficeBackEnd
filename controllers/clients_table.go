@@ -30,7 +30,7 @@ import (
 // @Router /api/clients-table [get]
 // GetClientsTable retorna clientes paginados e filtrados para o DataTable, incluindo status online e expiração
 func GetClientsTable(c *gin.Context) {
-	// 📌 Extrai `member_id` do token
+	// 📌 Extrair `member_id` do token
 	tokenString := c.GetHeader("Authorization")
 	if tokenString == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token não fornecido"})
@@ -50,32 +50,16 @@ func GetClientsTable(c *gin.Context) {
 	}
 	memberID := int(memberIDFloat)
 
-	// 📌 Obtém os parâmetros da requisição
-	onlineFilter := c.DefaultQuery("online", "") == "true"
-	search := c.Query("search")
-	expirationFilter, _ := strconv.Atoi(c.DefaultQuery("expiration_filter", "-1")) // -1 significa "sem filtro"
+	// 📌 Obtém o parâmetro `online` (true/false)
+	onlineFilter, _ := strconv.ParseBool(c.DefaultQuery("online", "false"))
 
-	// 📌 Limita o valor máximo do filtro de expiração para 90 dias
-	if expirationFilter > 90 {
-		expirationFilter = 90
-	}
+	// 📌 Obtém o parâmetro `expiration_filter` (dias até expiração ou `-1` para vencidos)
+	expirationFilter, _ := strconv.Atoi(c.DefaultQuery("expiration_filter", "0"))
 
-	// 📌 Define a condição de expiração
-	currentTime := time.Now().Unix()
-	var expirationCondition string
-	var expirationArgs []interface{}
-
-	if expirationFilter > 0 {
-		expirationCondition = "AND exp_date BETWEEN ? AND ?"
-		expirationArgs = append(expirationArgs, currentTime, currentTime+int64(expirationFilter*86400))
-	} else if expirationFilter == 0 { // Apenas vencidos
-		expirationCondition = "AND exp_date < ?"
-		expirationArgs = append(expirationArgs, currentTime)
-	}
-
-	// 📌 Parâmetros de paginação
+	// 📌 Parâmetros de paginação e pesquisa
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	search := c.Query("search")
 
 	if page < 1 {
 		page = 1
@@ -86,19 +70,18 @@ func GetClientsTable(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	// 📌 Obtém status online de **todos os usuários do membro**
+	// 📌 Obtém status online de todos os usuários ANTES da paginação
 	onlineStatuses, err := getAllUsersOnlineStatus(memberID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar status online"})
 		return
 	}
 
-	// 📌 Query base para buscar usuários já com todos os filtros aplicados
+	// 📌 Consulta base para buscar todos os usuários do membro
 	query := `SELECT id, username, password, exp_date, enabled, admin_enabled, max_connections, created_at, reseller_notes, is_trial 
-			FROM users WHERE member_id = ? ` + expirationCondition
+			FROM users WHERE member_id = ?`
 	var args []interface{}
 	args = append(args, memberID)
-	args = append(args, expirationArgs...)
 
 	// 📌 Aplica filtro de pesquisa
 	if search != "" {
@@ -106,11 +89,10 @@ func GetClientsTable(c *gin.Context) {
 		args = append(args, "%"+search+"%", "%"+search+"%")
 	}
 
-	// 📌 Mantém a ordenação
-	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-	args = append(args, limit, offset)
+	// 📌 Ordenação antes da paginação
+	query += " ORDER BY created_at DESC"
 
-	// 📌 Executa busca de clientes com paginação
+	// 📌 Executa busca de todos os usuários, sem paginação inicial
 	rows, err := config.DB.Query(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar clientes"})
@@ -118,9 +100,9 @@ func GetClientsTable(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var clients []models.ClientTableData
+	var allClients []models.ClientTableData
 
-	// 🔄 Processa os clientes aplicando filtros e status online
+	// 🔄 Processa todos os usuários antes de paginar
 	for rows.Next() {
 		var client models.ClientTableData
 		if err := rows.Scan(
@@ -131,7 +113,7 @@ func GetClientsTable(c *gin.Context) {
 			return
 		}
 
-		// 📌 Associa status online
+		// 📌 Associa status online se existir
 		if status, exists := onlineStatuses[client.ID]; exists {
 			client.Online = map[string]interface{}{
 				"username":            status.Username,
@@ -151,37 +133,61 @@ func GetClientsTable(c *gin.Context) {
 			client.Online = map[string]interface{}{} // 🔹 Retorna `{}` se não estiver online
 		}
 
-		clients = append(clients, client)
+		allClients = append(allClients, client)
 	}
 
-	// 📌 Contagem total de registros (corrigida)
-	var total int
-	countQuery := `SELECT COUNT(*) FROM users WHERE member_id = ? ` + expirationCondition
-	countArgs := []interface{}{memberID}
-	countArgs = append(countArgs, expirationArgs...)
+	// 📌 Filtro `expiration_filter`
+	if expirationFilter > 0 || expirationFilter == -1 {
+		filteredClients := make([]models.ClientTableData, 0, len(allClients))
+		currentTime := time.Now().Unix()
+		expirationDays := int64(expirationFilter) * 86400 // 🔹 Converte dias para segundos
 
-	config.DB.QueryRow(countQuery, countArgs...).Scan(&total)
+		for _, client := range allClients {
+			expDateInt, err := strconv.ParseInt(client.ExpDate.String, 10, 64)
+			if err != nil {
+				expDateInt = 0 // 🔹 Se falhar, assume vencido
+			}
 
-	// 📌 Filtragem final se `online=true`
+			if expirationFilter == -1 && expDateInt < currentTime { // 🔹 Vencidos
+				filteredClients = append(filteredClients, client)
+			} else if expirationFilter > 0 && expDateInt >= currentTime && expDateInt <= (currentTime+expirationDays) {
+				filteredClients = append(filteredClients, client) // 🔹 Próximos X dias
+			}
+		}
+		allClients = filteredClients // 🔹 Substitui a lista original
+	}
+
+	// 📌 Filtro `online=true`
 	if onlineFilter {
-		filteredClients := make([]models.ClientTableData, 0, len(clients))
-		for _, client := range clients {
+		filteredClients := make([]models.ClientTableData, 0, len(allClients))
+		for _, client := range allClients {
 			if _, exists := onlineStatuses[client.ID]; exists {
 				filteredClients = append(filteredClients, client)
 			}
 		}
-		clients = filteredClients
-		total = len(clients) // Atualiza a contagem total após filtrar os online
+		allClients = filteredClients
 	}
 
+	// 📌 Atualiza total de registros após filtros
+	total := len(allClients)
 	totalPages := (total + limit - 1) / limit
+
+	// 📌 Paginação final
+	start := offset
+	end := offset + limit
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
 
 	// 📌 Retorno formatado
 	c.JSON(http.StatusOK, gin.H{
 		"total_paginas":   totalPages,
 		"pagina_atual":    page,
 		"total_registros": total,
-		"clientes":        clients,
+		"clientes":        allClients[start:end],
 	})
 }
 
