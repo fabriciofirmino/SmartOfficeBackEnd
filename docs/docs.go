@@ -74,7 +74,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retorna uma lista de clientes paginada e filtrada para uso em DataTables, associados ao member_id do token. Agora inclui status online.",
+                "description": "Retorna uma lista de clientes paginada e filtrada para uso em DataTables, associados ao member_id do token. Inclui filtro de status online e expiração.",
                 "consumes": [
                     "application/json"
                 ],
@@ -108,6 +108,12 @@ const docTemplate = `{
                         "type": "boolean",
                         "description": "Filtrar usuários online (true para listar apenas online, false para todos)",
                         "name": "online",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar clientes por vencimento (7, 15, 30, custom até 90 ou '0' para vencidos)",
+                        "name": "expiration_filter",
                         "in": "query"
                     }
                 ],

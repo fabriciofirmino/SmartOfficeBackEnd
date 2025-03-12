@@ -237,7 +237,7 @@ paths:
       consumes:
       - application/json
       description: Retorna uma lista de clientes paginada e filtrada para uso em DataTables,
-        associados ao member_id do token. Agora inclui status online.
+        associados ao member_id do token. Inclui filtro de status online e expiração.
       parameters:
       - description: 'Número da página (padrão: 1)'
         in: query
@@ -256,6 +256,11 @@ paths:
         in: query
         name: online
         type: boolean
+      - description: Filtrar clientes por vencimento (7, 15, 30, custom até 90 ou
+          '0' para vencidos)
+        in: query
+        name: expiration_filter
+        type: integer
       produces:
       - application/json
       responses:

@@ -7,13 +7,14 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-// GetClientsTable retorna clientes paginados e filtrados para o DataTable, incluindo status online
+// GetClientsTable retorna clientes paginados e filtrados para o DataTable, incluindo status online e expiração
 // @Summary Retorna clientes paginados e filtrados
-// @Description Retorna uma lista de clientes paginada e filtrada para uso em DataTables, associados ao member_id do token. Agora inclui status online.
+// @Description Retorna uma lista de clientes paginada e filtrada para uso em DataTables, associados ao member_id do token. Inclui filtro de status online e expiração.
 // @Tags ClientsTable
 // @Security BearerAuth
 // @Accept json
@@ -22,12 +23,14 @@ import (
 // @Param limit query int false "Limite de registros por página (padrão: 10)"
 // @Param search query string false "Termo de pesquisa para filtrar por username ou reseller_notes"
 // @Param online query bool false "Filtrar usuários online (true para listar apenas online, false para todos)"
+// @Param expiration_filter query int false "Filtrar clientes por vencimento (7, 15, 30, custom até 90 ou '0' para vencidos)"
 // @Success 200 {object} map[string]interface{} "Retorna a lista de clientes paginada e informações de paginação"
 // @Failure 401 {object} map[string]string "Token inválido ou não fornecido"
 // @Failure 500 {object} map[string]string "Erro interno ao buscar ou processar os dados"
 // @Router /api/clients-table [get]
+// GetClientsTable retorna clientes paginados e filtrados para o DataTable, incluindo status online e expiração
 func GetClientsTable(c *gin.Context) {
-	// 📌 Extrair `member_id` do token
+	// 📌 Extrai `member_id` do token
 	tokenString := c.GetHeader("Authorization")
 	if tokenString == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token não fornecido"})
@@ -45,15 +48,34 @@ func GetClientsTable(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "MemberID não encontrado no token"})
 		return
 	}
-	memberID := int(memberIDFloat) // 🔹 Converte para inteiro
+	memberID := int(memberIDFloat)
 
-	// 📌 Obtém o parâmetro `online` (true/false)
-	onlineFilter, _ := strconv.ParseBool(c.DefaultQuery("online", "false")) // ✅ Converte para bool
+	// 📌 Obtém os parâmetros da requisição
+	onlineFilter := c.DefaultQuery("online", "") == "true"
+	search := c.Query("search")
+	expirationFilter, _ := strconv.Atoi(c.DefaultQuery("expiration_filter", "-1")) // -1 significa "sem filtro"
 
-	// 📌 Parâmetros de paginação e pesquisa
+	// 📌 Limita o valor máximo do filtro de expiração para 90 dias
+	if expirationFilter > 90 {
+		expirationFilter = 90
+	}
+
+	// 📌 Define a condição de expiração
+	currentTime := time.Now().Unix()
+	var expirationCondition string
+	var expirationArgs []interface{}
+
+	if expirationFilter > 0 {
+		expirationCondition = "AND exp_date BETWEEN ? AND ?"
+		expirationArgs = append(expirationArgs, currentTime, currentTime+int64(expirationFilter*86400))
+	} else if expirationFilter == 0 { // Apenas vencidos
+		expirationCondition = "AND exp_date < ?"
+		expirationArgs = append(expirationArgs, currentTime)
+	}
+
+	// 📌 Parâmetros de paginação
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	search := c.Query("search") // 🔹 Termo de pesquisa opcional
 
 	if page < 1 {
 		page = 1
@@ -64,29 +86,31 @@ func GetClientsTable(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	// 📌 Obtém status online de **todos os usuários do membro** ANTES da paginação
+	// 📌 Obtém status online de **todos os usuários do membro**
 	onlineStatuses, err := getAllUsersOnlineStatus(memberID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar status online"})
 		return
 	}
 
-	// 📌 Consulta base para buscar todos os usuários (sem paginação inicial)
+	// 📌 Query base para buscar usuários já com todos os filtros aplicados
 	query := `SELECT id, username, password, exp_date, enabled, admin_enabled, max_connections, created_at, reseller_notes, is_trial 
-			FROM users WHERE member_id = ?`
+			FROM users WHERE member_id = ? ` + expirationCondition
 	var args []interface{}
 	args = append(args, memberID)
+	args = append(args, expirationArgs...)
 
-	// 📌 Aplica filtro de pesquisa (caso necessário)
+	// 📌 Aplica filtro de pesquisa
 	if search != "" {
 		query += ` AND (username LIKE ? OR reseller_notes LIKE ?)`
 		args = append(args, "%"+search+"%", "%"+search+"%")
 	}
 
-	// 📌 Ordenação antes da paginação
-	query += " ORDER BY created_at DESC"
+	// 📌 Mantém a ordenação
+	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
 
-	// 📌 Executa busca de **todos os usuários**, sem paginação inicial
+	// 📌 Executa busca de clientes com paginação
 	rows, err := config.DB.Query(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar clientes"})
@@ -94,9 +118,9 @@ func GetClientsTable(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var allClients []models.ClientTableData
+	var clients []models.ClientTableData
 
-	// 🔄 Processa todos os usuários antes de paginar
+	// 🔄 Processa os clientes aplicando filtros e status online
 	for rows.Next() {
 		var client models.ClientTableData
 		if err := rows.Scan(
@@ -107,7 +131,7 @@ func GetClientsTable(c *gin.Context) {
 			return
 		}
 
-		// 📌 Associa o status online ao cliente (se houver)
+		// 📌 Associa status online
 		if status, exists := onlineStatuses[client.ID]; exists {
 			client.Online = map[string]interface{}{
 				"username":            status.Username,
@@ -127,40 +151,37 @@ func GetClientsTable(c *gin.Context) {
 			client.Online = map[string]interface{}{} // 🔹 Retorna `{}` se não estiver online
 		}
 
-		allClients = append(allClients, client)
+		clients = append(clients, client)
 	}
 
-	// 📌 Aplica filtro `online=true` APÓS carregar todos os usuários
-	var filteredClients []models.ClientTableData
+	// 📌 Contagem total de registros (corrigida)
+	var total int
+	countQuery := `SELECT COUNT(*) FROM users WHERE member_id = ? ` + expirationCondition
+	countArgs := []interface{}{memberID}
+	countArgs = append(countArgs, expirationArgs...)
+
+	config.DB.QueryRow(countQuery, countArgs...).Scan(&total)
+
+	// 📌 Filtragem final se `online=true`
 	if onlineFilter {
-		for _, client := range allClients {
+		filteredClients := make([]models.ClientTableData, 0, len(clients))
+		for _, client := range clients {
 			if _, exists := onlineStatuses[client.ID]; exists {
 				filteredClients = append(filteredClients, client)
 			}
 		}
-	} else {
-		filteredClients = allClients // 🔹 Se `online=false`, mantém todos
+		clients = filteredClients
+		total = len(clients) // Atualiza a contagem total após filtrar os online
 	}
 
-	// 📌 Paginação manual após filtrar os online
-	total := len(filteredClients)
-	totalPages := (total + limit - 1) / limit // 🔹 Calcula total de páginas
-
-	start := offset
-	end := offset + limit
-	if start > total {
-		start = total
-	}
-	if end > total {
-		end = total
-	}
+	totalPages := (total + limit - 1) / limit
 
 	// 📌 Retorno formatado
 	c.JSON(http.StatusOK, gin.H{
 		"total_paginas":   totalPages,
 		"pagina_atual":    page,
 		"total_registros": total,
-		"clientes":        filteredClients[start:end], // 🔹 Aplica paginação correta
+		"clientes":        clients,
 	})
 }
 
