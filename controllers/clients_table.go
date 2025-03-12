@@ -64,29 +64,26 @@ func GetClientsTable(c *gin.Context) {
 
 	offset := (page - 1) * limit
 
-	// 📌 Obtém status online de todos os usuários do membro em **uma única consulta**
+	// 📌 Obtém status online de **todos os usuários do membro** ANTES da paginação
 	onlineStatuses, err := getAllUsersOnlineStatus(memberID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar status online"})
 		return
 	}
 
-	// 📌 Consulta base (Filtrando pelo `member_id`)
+	// 📌 Consulta base para buscar todos os usuários (sem paginação inicial)
 	query := `SELECT id, username, password, exp_date, enabled, admin_enabled, max_connections, created_at, reseller_notes, is_trial 
 			FROM users WHERE member_id = ?`
 	var args []interface{}
-	args = append(args, memberID) // 🔹 Sempre filtra pelo `member_id`
+	args = append(args, memberID)
 
-	// 📌 Adiciona filtro de pesquisa se necessário
+	// 📌 Aplica filtro de pesquisa (caso necessário)
 	if search != "" {
 		query += ` AND (username LIKE ? OR reseller_notes LIKE ?)`
 		args = append(args, "%"+search+"%", "%"+search+"%")
 	}
 
-	// 📌 Paginação
-	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-	args = append(args, limit, offset)
-
+	// 📌 Executa busca de **todos os usuários**, sem paginação inicial
 	rows, err := config.DB.Query(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar clientes"})
@@ -94,7 +91,9 @@ func GetClientsTable(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	var clients []models.ClientTableData
+	var allClients []models.ClientTableData
+
+	// 🔄 Processa todos os usuários antes de paginar
 	for rows.Next() {
 		var client models.ClientTableData
 		if err := rows.Scan(
@@ -125,41 +124,40 @@ func GetClientsTable(c *gin.Context) {
 			client.Online = map[string]interface{}{} // 🔹 Retorna `{}` se não estiver online
 		}
 
-		clients = append(clients, client)
+		allClients = append(allClients, client)
 	}
 
-	// 📌 Se `online=true`, filtra apenas usuários online
+	// 📌 Aplica filtro `online=true` APÓS carregar todos os usuários
+	var filteredClients []models.ClientTableData
 	if onlineFilter {
-		filteredClients := []models.ClientTableData{}
-		for _, client := range clients {
+		for _, client := range allClients {
 			if _, exists := onlineStatuses[client.ID]; exists {
 				filteredClients = append(filteredClients, client)
 			}
 		}
-		clients = filteredClients // 🔹 Atualiza lista de clientes apenas com online
+	} else {
+		filteredClients = allClients // 🔹 Se `online=false`, mantém todos
 	}
 
-	// 📌 Contagem total de registros filtrados pelo `member_id`
-	var total int
-	countQuery := `SELECT COUNT(*) FROM users WHERE member_id = ?`
-	countArgs := []interface{}{memberID}
-
-	// 📌 Aplica filtro de pesquisa na contagem
-	if search != "" {
-		countQuery += ` AND (username LIKE ? OR reseller_notes LIKE ?)`
-		countArgs = append(countArgs, "%"+search+"%", "%"+search+"%")
-	}
-
-	config.DB.QueryRow(countQuery, countArgs...).Scan(&total)
-
+	// 📌 Paginação manual após filtrar os online
+	total := len(filteredClients)
 	totalPages := (total + limit - 1) / limit // 🔹 Calcula total de páginas
+
+	start := offset
+	end := offset + limit
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
 
 	// 📌 Retorno formatado
 	c.JSON(http.StatusOK, gin.H{
 		"total_paginas":   totalPages,
 		"pagina_atual":    page,
 		"total_registros": total,
-		"clientes":        clients,
+		"clientes":        filteredClients[start:end], // 🔹 Aplica paginação correta
 	})
 }
 
