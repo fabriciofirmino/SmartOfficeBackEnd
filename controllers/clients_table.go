@@ -137,7 +137,7 @@ func GetClientsTable(c *gin.Context) {
 	}
 
 	// 📌 Filtro `expiration_filter`
-	if expirationFilter > 0 || expirationFilter == -1 {
+	if expirationFilter != 0 { // 🔹 Só filtra se `expiration_filter` for diferente de 0
 		filteredClients := make([]models.ClientTableData, 0, len(allClients))
 		currentTime := time.Now().Unix()
 		expirationDays := int64(expirationFilter) * 86400 // 🔹 Converte dias para segundos
@@ -148,7 +148,8 @@ func GetClientsTable(c *gin.Context) {
 				expDateInt = 0 // 🔹 Se falhar, assume vencido
 			}
 
-			if expirationFilter == -1 && expDateInt < currentTime { // 🔹 Vencidos
+			// 📌 Se `expiration_filter = -1` ou `0`, traz apenas vencidos (`exp_date < agora`)
+			if (expirationFilter == -1 || expirationFilter == 0) && expDateInt < currentTime {
 				filteredClients = append(filteredClients, client)
 			} else if expirationFilter > 0 && expDateInt >= currentTime && expDateInt <= (currentTime+expirationDays) {
 				filteredClients = append(filteredClients, client) // 🔹 Próximos X dias
