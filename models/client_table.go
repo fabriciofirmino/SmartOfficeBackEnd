@@ -11,12 +11,12 @@ type ClientTableData struct {
 	Username       string                 `json:"username"`
 	Password       string                 `json:"password"`
 	ExpDate        sql.NullString         `json:"exp_date"`
-	Enabled        bool                   `json:"enabled"`
-	AdminEnabled   bool                   `json:"admin_enabled"`
+	Enabled        int                    `json:"enabled"`
+	AdminEnabled   int                    `json:"admin_enabled"`
 	MaxConnections int                    `json:"max_connections"`
 	CreatedAt      string                 `json:"created_at"`
 	ResellerNotes  sql.NullString         `json:"reseller_notes"`
-	IsTrial        bool                   `json:"is_trial"`
+	IsTrial        int                    `json:"is_trial"`
 	Online         map[string]interface{} `json:"online"`
 }
 

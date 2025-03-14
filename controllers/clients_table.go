@@ -88,6 +88,12 @@ func GetClientsTable(c *gin.Context) {
 		query += ` AND (username LIKE ? OR reseller_notes LIKE ?)`
 		args = append(args, "%"+search+"%", "%"+search+"%")
 	}
+	// 📌 Aplica filtro `is_trial=0` ou `is_trial=1` (caso informado)
+	isTrialFilter := c.Query("is_trial")
+	if isTrialFilter != "" {
+		query += ` AND is_trial = ?`
+		args = append(args, isTrialFilter)
+	}
 
 	// 📌 Ordenação antes da paginação
 	query += " ORDER BY created_at DESC"
