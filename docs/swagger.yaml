@@ -192,6 +192,13 @@ definitions:
         example: 00:1A:2B:3C:4D:5E
         type: string
     type: object
+  models.ScreenRequest:
+    properties:
+      userID:
+        type: integer
+    required:
+    - userID
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -473,6 +480,94 @@ paths:
       summary: Renovar Conta
       tags:
       - Renovação
+  /api/tools-table/add-screen:
+    post:
+      consumes:
+      - application/json
+      description: Aumenta o número máximo de conexões do usuário e desconta créditos
+        se aplicável
+      parameters:
+      - description: JSON contendo o ID do usuário
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScreenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Retorna o novo total de telas e o saldo de créditos atualizado
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro nos parâmetros ou créditos insuficientes
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno ao adicionar tela
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Adiciona uma nova tela ao usuário
+      tags:
+      - ToolsTable
+  /api/tools-table/remove-screen:
+    post:
+      consumes:
+      - application/json
+      description: Diminui o número máximo de conexões do usuário, garantindo que
+        tenha pelo menos uma tela ativa
+      parameters:
+      - description: JSON contendo o ID do usuário
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScreenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Retorna o novo total de telas
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro nos parâmetros ou limite mínimo atingido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno ao remover tela
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove uma tela do usuário
+      tags:
+      - ToolsTable
   /login:
     post:
       consumes:

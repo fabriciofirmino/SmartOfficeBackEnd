@@ -34,6 +34,7 @@ func SetupServer() *gin.Engine {
 	// Conectar ao banco de dados
 	config.ConnectDB()
 	config.InitRedis()
+	config.InitMongo()
 
 	// Criar servidor
 	r := gin.Default()

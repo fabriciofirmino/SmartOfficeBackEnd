@@ -29,6 +29,8 @@ func SetupRoutes(r *gin.Engine) {
 		protected.GET("/dashboard", controllers.DashboardHandler)
 		protected.POST("/renew", controllers.RenewAccount)
 		protected.GET("/credits", controllers.GetCredits)
+		protected.POST("/tools-table/add-screen", controllers.AddScreen)
+		protected.POST("/tools-table/remove-screen", controllers.RemoveScreen)
 
 	}
 }
