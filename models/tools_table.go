@@ -1,16 +1,29 @@
 package models
 
-// Estrutura para edição de usuário
+import (
+	"database/sql"
+)
+
+// EditUserRequest representa os dados que podem ser editados no usuário
 type EditUserRequest struct {
-	ID                int                    `json:"id"`
-	Username          string                 `json:"username"`
-	Password          string                 `json:"password"`
-	ResellerNotes     string                 `json:"reseller_notes"`
-	NumeroWhats       string                 `json:"NUMERO_WHATS"`
-	NomeParaAviso     string                 `json:"NOME_PARA_AVISO"`
-	EnviarNotificacao bool                   `json:"ENVIAR_NOTIFICACAO"`
-	Bouquet           string                 `json:"bouquet"`
-	AppData           map[string]interface{} `json:"Aplicativo"`
+	Username             string         `json:"username" binding:"required"`
+	Password             string         `json:"password,omitempty"`
+	ResellerNotes        string         `json:"reseller_notes,omitempty"`
+	NumeroWhats          string         `json:"numero_whats,omitempty"`
+	NomeParaAviso        string         `json:"nome_para_aviso,omitempty"`
+	EnviarNotificacao    *bool          `json:"enviar_notificacao,omitempty"`
+	Bouquet              string         `json:"bouquet,omitempty"`
+	Aplicativo           sql.NullString `json:"aplicativo,omitempty"`
+	DeviceID             int64          `json:"device_id,omitempty"`
+	MAC                  string         `json:"mac,omitempty"`
+	NomeDoAplicativo     string         `json:"nome_do_aplicativo,omitempty"`
+	VencimentoAplicativo string         `json:"vencimento_aplicativo,omitempty"`
+}
+
+// EditUserResponse representa a resposta após edição de usuário
+type EditUserResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
 // Estrutura para adicionar/remover tela

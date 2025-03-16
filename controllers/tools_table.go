@@ -5,15 +5,38 @@ import (
 	"apiBackEnd/models"
 	"apiBackEnd/utils"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 )
+
+// validateAndSanitizeField valida, sanitiza e retorna um campo limpo
+func validateAndSanitizeField(value string, fieldName string, minLen, maxLen int, c *gin.Context) string {
+	if value == "" {
+		return value
+	}
+
+	// 🔹 Remove espaços e caracteres especiais, mantendo apenas letras e números
+	reg, _ := regexp.Compile("[^a-zA-Z0-9]")
+	sanitizedValue := reg.ReplaceAllString(value, "")
+
+	// 🔹 Validação de tamanho
+	if len(sanitizedValue) < minLen || len(sanitizedValue) > maxLen {
+		c.JSON(http.StatusBadRequest, gin.H{"erro": fmt.Sprintf("O campo %s deve ter entre %d e %d caracteres", fieldName, minLen, maxLen)})
+		return ""
+	}
+
+	return sanitizedValue
+}
 
 // 📌 Função para validar se o usuário pertence ao `member_id` do token
 func validateUserAccess(c *gin.Context, userID int) (int, error) {
@@ -51,15 +74,26 @@ func saveAuditLog(action string, userID int, details interface{}) {
 		"timestamp": time.Now(),
 	}
 
-	// Obtém a referência para a coleção `audit_logs`
-	collection := config.MongoDB.Database("Logs").Collection("Telas")
+	// Escolhe a coleção com base na ação
+	var collectionName string
+	switch action {
+	case "add_screen", "remove_screen":
+		collectionName = "Telas"
+	case "edit_user":
+		collectionName = "Edit"
+	default:
+		collectionName = "LogsGerais" // Se for outra ação, salva em uma coleção genérica
+	}
+
+	// Obtém a referência para a coleção correta
+	collection := config.MongoDB.Database("Logs").Collection(collectionName)
 
 	// Insere o log no MongoDB
 	_, err := collection.InsertOne(context.TODO(), logEntry)
 	if err != nil {
 		fmt.Println("❌ Erro ao salvar log no MongoDB:", err)
 	} else {
-		fmt.Println("✅ Log salvo no MongoDB:", logEntry)
+		fmt.Printf("✅ Log salvo na coleção '%s': %+v\n", collectionName, logEntry)
 	}
 }
 
@@ -269,5 +303,217 @@ func RemoveScreen(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"sucesso":     "Tela removida com sucesso",
 		"total_telas": totalTelas - 1,
+	})
+}
+
+// EditUser permite editar os dados de um usuário
+// @Summary Edita um usuário
+// @Description Permite a edição de dados de um usuário na revenda autenticada
+// @Tags ToolsTable
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path int true "ID do usuário a ser editado"
+// @Param request body models.EditUserRequest true "Dados do usuário a serem editados"
+// @Success 200 {object} map[string]interface{} "Usuário editado com sucesso"
+// @Failure 400 {object} map[string]string "Erro na requisição"
+// @Failure 401 {object} map[string]string "Token inválido ou acesso negado"
+// @Failure 500 {object} map[string]string "Erro interno ao processar a requisição"
+// @Router /api/tools-table/edit/{id} [put]
+func EditUser(c *gin.Context) {
+	var req models.EditUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"erro": "Dados inválidos"})
+		return
+	}
+
+	// 📌 Obtém o ID do usuário pela URL
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"erro": "ID inválido"})
+		return
+	}
+
+	// 📌 Valida se o usuário pertence à revenda autenticada (AGORA BLOQUEIA SE FOR OUTRO MEMBER)
+	memberID, err := validateUserAccess(c, userID)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"erro": err.Error()})
+		return
+	}
+
+	log.Printf("🔍 DEBUG - Editando usuário ID: %d (Revenda: %d)", userID, memberID)
+
+	// 📌 Verifica novamente no banco se o usuário pertence à revenda correta antes do UPDATE
+	var dbMemberID int
+	err = config.DB.QueryRow("SELECT member_id FROM users WHERE id = ?", userID).Scan(&dbMemberID)
+	if err != nil {
+		log.Printf("❌ ERRO: Usuário ID %d não encontrado!", userID)
+		c.JSON(http.StatusBadRequest, gin.H{"erro": "Usuário não encontrado"})
+		return
+	}
+
+	// 🚫 Se o usuário pertence a outra revenda, bloquear atualização
+	if dbMemberID != memberID {
+		log.Printf("🚨 ALERTA! Tentativa de edição de outro membro! (Usuário: %d, Revenda do Token: %d, Revenda do Usuário: %d)", userID, memberID, dbMemberID)
+		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Você não pode editar usuários de outra revenda!"})
+		return
+	}
+
+	// 📌 Valida e limpa username
+	if req.Username != "" {
+		minUserLength := 4
+		maxUserLength := 15
+
+		req.Username = validateAndSanitizeField(req.Username, "username", minUserLength, maxUserLength, c)
+		if req.Username == "" {
+			return
+		}
+
+		// 📌 Verifica se o username já existe em toda a base
+		var existingID int
+		err = config.DB.QueryRow("SELECT id FROM users WHERE username = ? AND id != ?", req.Username, userID).Scan(&existingID)
+		if err == nil {
+			log.Println("❌ ERRO - Username já está em uso globalmente!")
+			c.JSON(400, gin.H{"erro": "Username já está em uso!"})
+			return
+		}
+
+	}
+
+	// 📌 Valida e limpa password
+	if req.Password != "" {
+		req.Password = validateAndSanitizeField(req.Password, "senha", 6, 15, c)
+		if req.Password == "" {
+			return
+		}
+	}
+
+	// 📌 Monta a query dinâmica de atualização
+	updateFields := []string{}
+	args := []interface{}{}
+
+	if req.Username != "" {
+		updateFields = append(updateFields, "username = ?")
+		args = append(args, req.Username)
+	}
+	if req.Password != "" {
+		updateFields = append(updateFields, "password = ?")
+		args = append(args, req.Password)
+	}
+	if req.ResellerNotes != "" {
+		updateFields = append(updateFields, "reseller_notes = ?")
+		args = append(args, req.ResellerNotes)
+	}
+	if req.NumeroWhats != "" {
+		updateFields = append(updateFields, "NUMERO_WHATS = ?")
+		args = append(args, req.NumeroWhats)
+	}
+	if req.NomeParaAviso != "" {
+		updateFields = append(updateFields, "NOME_PARA_AVISO = ?")
+		args = append(args, req.NomeParaAviso)
+	}
+	if req.Bouquet != "" {
+		updateFields = append(updateFields, "bouquet = ?")
+		args = append(args, req.Bouquet)
+	}
+
+	// 📌 Processa os dados do aplicativo e salva como JSON no banco de dados
+	var appDataJSON string
+	if req.NomeDoAplicativo != "" || req.MAC != "" || req.DeviceID != 0 || req.VencimentoAplicativo != "" {
+		appData := map[string]interface{}{
+			"NomeDoAplicativo":     req.NomeDoAplicativo,
+			"MAC":                  req.MAC,
+			"DeviceID":             req.DeviceID,
+			"VencimentoAplicativo": req.VencimentoAplicativo,
+		}
+
+		// Converte para JSON
+		appDataBytes, err := json.Marshal(appData)
+		if err != nil {
+			log.Println("❌ Erro ao converter dados do aplicativo para JSON:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao processar os dados do aplicativo"})
+			return
+		}
+
+		appDataJSON = string(appDataBytes)
+		updateFields = append(updateFields, "aplicativo = ?")
+		args = append(args, appDataJSON)
+	}
+
+	if req.EnviarNotificacao != nil {
+		updateFields = append(updateFields, "ENVIAR_NOTIFICACAO = ?")
+		args = append(args, *req.EnviarNotificacao)
+	}
+
+	if len(updateFields) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"erro": "Nenhum campo válido para atualização"})
+		return
+	}
+
+	// 📌 Finaliza a query de atualização
+	args = append(args, userID)
+	query := fmt.Sprintf("UPDATE users SET %s WHERE id = ?", strings.Join(updateFields, ", "))
+
+	// 📌 Executa o update
+	res, err := config.DB.Exec(query, args...)
+	if err != nil {
+		log.Printf("❌ ERRO ao atualizar usuário ID %d: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao atualizar usuário"})
+		return
+	}
+
+	// 📌 Verifica se o usuário foi atualizado
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		log.Printf("⚠️ Nenhuma alteração realizada para o usuário ID %d", userID)
+		c.JSON(http.StatusBadRequest, gin.H{"erro": "Nenhuma alteração realizada"})
+		return
+	}
+
+	log.Printf("✅ Usuário ID %d atualizado com sucesso!", userID)
+
+	// 📌 Obtém os dados antigos do usuário para log
+	var oldUser models.EditUserRequest
+	err = config.DB.QueryRow(`
+	SELECT username, password, reseller_notes, NUMERO_WHATS, NOME_PARA_AVISO, 
+	ENVIAR_NOTIFICACAO, bouquet, aplicativo 
+	FROM users WHERE id = ?`, userID).
+		Scan(&oldUser.Username, &oldUser.Password, &oldUser.ResellerNotes, &oldUser.NumeroWhats,
+			&oldUser.NomeParaAviso, &oldUser.EnviarNotificacao, &oldUser.Bouquet, &oldUser.Aplicativo)
+	if err != nil {
+		log.Printf("❌ ERRO ao buscar dados antigos do usuário ID %d: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar dados antigos do usuário"})
+		return
+	}
+
+	// 📌 Salva Log no MongoDB com valores antigos e novos
+	saveAuditLog("edit_user", userID, bson.M{
+		"valores_anteriores": bson.M{
+			"username":           oldUser.Username,
+			"password":           oldUser.Password,
+			"reseller_notes":     oldUser.ResellerNotes,
+			"numero_whats":       oldUser.NumeroWhats,
+			"nome_para_aviso":    oldUser.NomeParaAviso,
+			"enviar_notificacao": oldUser.EnviarNotificacao,
+			"bouquet":            oldUser.Bouquet,
+			"aplicativo":         oldUser.Aplicativo,
+		},
+		"valores_novos": bson.M{
+			"username":           req.Username,
+			"password":           req.Password,
+			"reseller_notes":     req.ResellerNotes,
+			"numero_whats":       req.NumeroWhats,
+			"nome_para_aviso":    req.NomeParaAviso,
+			"enviar_notificacao": req.EnviarNotificacao,
+			"bouquet":            req.Bouquet,
+			"aplicativo":         appDataJSON,
+		},
+		"timestamp": time.Now(),
+	})
+
+	// 📌 Retorna resposta
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Usuário atualizado com sucesso!",
 	})
 }

@@ -502,6 +502,80 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/tools-table/edit/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Permite a edição de dados de um usuário na revenda autenticada",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ToolsTable"
+                ],
+                "summary": "Edita um usuário",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID do usuário a ser editado",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados do usuário a serem editados",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.EditUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Usuário editado com sucesso",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Erro na requisição",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token inválido ou acesso negado",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno ao processar a requisição",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/tools-table/remove-screen": {
             "post": {
                 "security": [
@@ -927,6 +1001,47 @@ const docTemplate = `{
                 "usr_mac": {
                     "type": "string",
                     "example": "00:1A:2B:3C:4D:5E"
+                }
+            }
+        },
+        "models.EditUserRequest": {
+            "type": "object",
+            "properties": {
+                "bouquet": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "integer"
+                },
+                "enviar_notificacao": {
+                    "type": "boolean"
+                },
+                "mac": {
+                    "type": "string"
+                },
+                "nome_do_aplicativo": {
+                    "type": "string"
+                },
+                "nome_para_aviso": {
+                    "type": "string"
+                },
+                "numero_whats": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "reseller_notes": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                },
+                "vencimento_aplicativo": {
+                    "type": "string"
                 }
             }
         },
