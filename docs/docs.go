@@ -1006,7 +1006,13 @@ const docTemplate = `{
         },
         "models.EditUserRequest": {
             "type": "object",
+            "required": [
+                "username"
+            ],
             "properties": {
+                "aplicativo": {
+                    "type": "string"
+                },
                 "bouquet": {
                     "type": "string"
                 },
@@ -1033,9 +1039,6 @@ const docTemplate = `{
                 },
                 "reseller_notes": {
                     "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
                 },
                 "username": {
                     "type": "string"

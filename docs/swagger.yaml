@@ -194,6 +194,8 @@ definitions:
     type: object
   models.EditUserRequest:
     properties:
+      aplicativo:
+        type: string
       bouquet:
         type: string
       device_id:
@@ -212,12 +214,12 @@ definitions:
         type: string
       reseller_notes:
         type: string
-      user_id:
-        type: integer
       username:
         type: string
       vencimento_aplicativo:
         type: string
+    required:
+    - username
     type: object
   models.ScreenRequest:
     properties:
