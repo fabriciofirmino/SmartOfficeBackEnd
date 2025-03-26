@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +12,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+// Crie uma configuração TLS que ignora a validação do certificado (não recomendado para produção)
+var tlsConfig = &tls.Config{
+	InsecureSkipVerify: true,
+}
 
 // MongoDB é a instância global para conexão
 var MongoDB *mongo.Client
@@ -27,6 +33,7 @@ func InitMongo() {
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	clientOpts := options.Client().
 		ApplyURI(mongoURI).
+		SetTLSConfig(tlsConfig).
 		SetServerAPIOptions(serverAPI)
 
 	// Conecta ao MongoDB

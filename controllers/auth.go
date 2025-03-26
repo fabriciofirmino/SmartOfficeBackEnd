@@ -4,11 +4,11 @@ import (
 	"apiBackEnd/models"
 	"apiBackEnd/utils"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-// AuthMiddleware valida o token JWT nas rotas protegidas
 // AuthMiddleware valida o token JWT nas rotas protegidas
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -89,7 +89,7 @@ func Login(c *gin.Context) {
 	}
 
 	// 📌 Gerar token com tempo de expiração configurável
-	token, err := utils.GenerateToken(user.Username, user.MemberID)
+	token, err := utils.GenerateToken(user.Username, user.MemberID, user.Credits, strconv.Itoa(user.Status))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao gerar token"})
 		return
