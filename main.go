@@ -18,7 +18,7 @@ import (
 // @contact.name Suporte
 // @contact.email suporte@example.com
 
-// @host localhost:8080
+// @host localhost:443
 // @BasePath /
 
 // @securityDefinitions.apikey BearerAuth
@@ -49,8 +49,8 @@ func main() {
 	r := SetupServer()
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8085" // Porta padrão
+		port = "443" // Porta padrão
 	}
 	log.Printf("🚀 Servidor rodando na porta %s", port)
-	r.Run(":" + port)
+	r.Run("0.0.0.0:" + port)
 }

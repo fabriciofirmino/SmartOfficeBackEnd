@@ -643,6 +643,29 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/version": {
+            "get": {
+                "description": "Retorna a versão atual da API definida no arquivo .env",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Versão"
+                ],
+                "summary": "Obter versão da API",
+                "responses": {
+                    "200": {
+                        "description": "Versão da API",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/login": {
             "post": {
                 "description": "Autentica um usuário e retorna um token JWT se as credenciais forem válidas.",

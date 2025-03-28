@@ -645,6 +645,21 @@ paths:
       summary: Remove uma tela do usuário
       tags:
       - ToolsTable
+  /api/version:
+    get:
+      description: Retorna a versão atual da API definida no arquivo .env
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Versão da API
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obter versão da API
+      tags:
+      - Versão
   /login:
     post:
       consumes:

@@ -18,6 +18,9 @@ func SetupRoutes(r *gin.Engine) {
 	r.POST("/login", controllers.Login)
 	r.POST("/logout", controllers.Logout)
 
+	// 📌 Rota para obter a versão da API
+	r.GET("/api/version", controllers.GetAPIVersion)
+
 	// 📌 Grupo de rotas protegidas
 	protected := r.Group("/api")
 	protected.Use(controllers.AuthMiddleware()) // ✅ Certifique-se que esta função existe
@@ -32,6 +35,5 @@ func SetupRoutes(r *gin.Engine) {
 		protected.POST("/tools-table/add-screen", controllers.AddScreen)
 		protected.POST("/tools-table/remove-screen", controllers.RemoveScreen)
 		protected.PUT("/tools-table/edit/:id", controllers.EditUser)
-
 	}
 }
