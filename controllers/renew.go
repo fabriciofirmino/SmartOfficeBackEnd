@@ -3,15 +3,15 @@ package controllers
 import (
 	"apiBackEnd/config"
 	"apiBackEnd/utils"
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Estrutura para receber a requisição de renovação
@@ -56,20 +56,7 @@ func RenewAccount(c *gin.Context) {
 	}
 	memberID := int(memberIDFloat)
 
-	statusFloat, exists := claims["status"].(float64)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Status da conta não encontrado no token"})
-		return
-	}
-	status := int(statusFloat)
-
-	// 🔥 **Se o status for diferente de 1, bloqueia a renovação**
-	if status != 1 {
-		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Conta bloqueada para renovação"})
-		return
-	}
-
-	log.Printf("🔍 MemberID extraído do token: %d | Status: %d\n", memberID, status)
+	// Validation for status removed.
 
 	// 🔹 3️⃣ Ler o corpo da requisição
 	var req RenewRequest
@@ -97,7 +84,7 @@ func RenewAccount(c *gin.Context) {
 		return
 	}
 
-	// 🔹 5️⃣ Validar créditos disponíveis (vêm do token, evitando consulta extra)
+	// 🔹 5️⃣ Validar créditos disponíveis (antes da renovação)
 	creditsFloat, exists := claims["credits"].(float64)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Créditos não encontrados no token"})
@@ -107,10 +94,14 @@ func RenewAccount(c *gin.Context) {
 
 	// 🔹 6️⃣ Definir custo e duração da renovação
 	diasRenovacao := req.QuantidadeRenovacaoMes * 30
-	custoPorPeriodo, _ := strconv.Atoi(os.Getenv(fmt.Sprintf("CREDITO_%d_MESES", req.QuantidadeRenovacaoMes)))
-	custoTotal := custoPorPeriodo * maxConnections
+	log.Printf("Quantidade de meses para renovação: %d, Dias de renovação: %d", req.QuantidadeRenovacaoMes, diasRenovacao)
+
+	// 🔹 **Calcular custo total com base em quantidade de meses e telas (max_connections)**
+	custoTotal := req.QuantidadeRenovacaoMes * maxConnections
+	log.Printf("Custo total calculado: %d (Quantidade de meses: %d * Máximo de conexões: %d)", custoTotal, req.QuantidadeRenovacaoMes, maxConnections)
 
 	if creditosDisponiveis < custoTotal {
+		log.Printf("Créditos insuficientes. Disponível: %d, Necessário: %d", creditosDisponiveis, custoTotal)
 		c.JSON(http.StatusPaymentRequired, gin.H{
 			"erro":                 "Créditos insuficientes para renovação",
 			"creditos_disponiveis": creditosDisponiveis,
@@ -122,12 +113,16 @@ func RenewAccount(c *gin.Context) {
 	// 🔹 7️⃣ Calcular nova data de expiração (sempre às 23h00)
 	now := time.Now().Unix()
 	var newExpDate time.Time
+
 	if currentExpDate.Valid && currentExpDate.Int64 >= now {
+		// Se exp_date for maior ou igual à data atual, assume exp_date
 		newExpDate = time.Unix(currentExpDate.Int64, 0).AddDate(0, 0, diasRenovacao)
 	} else {
+		// Se exp_date for menor ou igual à data atual, assume a data de hoje
 		newExpDate = time.Now().AddDate(0, 0, diasRenovacao)
 	}
 
+	// Ajustar a nova data de expiração para sempre ser às 23h00
 	newExpDate = time.Date(newExpDate.Year(), newExpDate.Month(), newExpDate.Day(), 23, 0, 0, 0, time.Local)
 	newExpDateEpoch := newExpDate.Unix()
 
@@ -138,6 +133,40 @@ func RenewAccount(c *gin.Context) {
 		return
 	}
 
+	// 🔹 **Debitar créditos antes de renovar**
+	log.Printf("Tentando debitar créditos. MemberID: %d, CustoTotal: %d", memberID, custoTotal)
+	result, err := tx.Exec("UPDATE streamcreed_db.reg_users SET credits = credits - ? WHERE id = ? AND credits >= ?", custoTotal, memberID, custoTotal)
+	if err != nil {
+		tx.Rollback()
+		log.Printf("Erro ao debitar créditos para memberID %d: %v", memberID, err)
+		c.JSON(http.StatusPaymentRequired, gin.H{"erro": "Não foi possível debitar os créditos para renovação"})
+		return
+	}
+
+	// 🔹 **Verificar se o débito foi realizado**
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		tx.Rollback()
+		log.Printf("Erro: débito de créditos não realizado para memberID %d. RowsAffected: %d", memberID, rowsAffected)
+		c.JSON(http.StatusPaymentRequired, gin.H{"erro": "Créditos insuficientes ou débito não realizado"})
+		return
+	}
+
+	log.Printf("Créditos debitados com sucesso para memberID %d. RowsAffected: %d", memberID, rowsAffected)
+
+	// 🔹 **Verificar se os créditos foram debitados corretamente**
+	var creditosRestantes int
+	err = tx.QueryRow("SELECT credits FROM streamcreed_db.reg_users WHERE id = ?", memberID).Scan(&creditosRestantes)
+	if err != nil || creditosRestantes < 0 {
+		tx.Rollback()
+		log.Printf("Erro ao verificar créditos restantes para memberID %d: %v", memberID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao verificar créditos após débito"})
+		return
+	}
+
+	log.Printf("Créditos restantes para memberID %d: %d", memberID, creditosRestantes)
+
+	// 🔹 **Renovar assinatura**
 	_, err = tx.Exec("UPDATE streamcreed_db.users SET exp_date = ?, is_trial = '0' WHERE id = ?", newExpDateEpoch, userID)
 	if err != nil {
 		tx.Rollback()
@@ -145,14 +174,17 @@ func RenewAccount(c *gin.Context) {
 		return
 	}
 
-	_, err = tx.Exec("UPDATE streamcreed_db.reg_users SET credits = credits - ? WHERE id = ?", custoTotal, memberID)
+	// 🔹 **Finalizar transação**
+	err = tx.Commit()
 	if err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao debitar créditos"})
+		log.Printf("Erro ao finalizar transação para memberID %d: %v", memberID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao finalizar transação"})
 		return
 	}
 
-	tx.Commit()
+	// 🔹 **Salvar log no MongoDB**
+	saveRenewLog(memberID, userID, currentExpDate.Int64, newExpDateEpoch, custoTotal)
+
 	// Converter `timeRemaining` (segundos) para dias, horas, minutos e segundos
 	dias := timeRemaining / 86400
 	horas := (timeRemaining % 86400) / 3600
@@ -168,8 +200,46 @@ func RenewAccount(c *gin.Context) {
 		"id_cliente":         userID,
 		"novo_exp_date":      newExpDateEpoch,
 		"creditos_gastos":    custoTotal,
-		"creditos_restantes": creditosDisponiveis - custoTotal,
+		"creditos_restantes": creditosRestantes,
 		"token_expira_em":    tempoRestanteFormatado, // 🔥 Agora formatado corretamente!
 	})
+}
 
+// saveRenewLog salva os detalhes da renovação no MongoDB
+func saveRenewLog(memberID, userID int, oldExpDate, newExpDate int64, creditsSpent int) {
+	if config.MongoDB == nil {
+		log.Println("⚠️ MongoDB não inicializado, ignorando log!")
+		return
+	}
+
+	// Define o fuso horário UTC-3
+	location, err := time.LoadLocation("America/Sao_Paulo")
+	if err != nil {
+		log.Printf("❌ Erro ao carregar fuso horário UTC-3: %v", err)
+		return
+	}
+
+	// Ajusta o timestamp para UTC-3
+	timestamp := time.Now().In(location)
+
+	// Define a estrutura do log
+	logEntry := bson.M{
+		"member_id":     memberID,
+		"user_id":       userID,
+		"old_exp_date":  time.Unix(oldExpDate, 0).In(location).Format("2006-01-02 15:04:05"),
+		"new_exp_date":  time.Unix(newExpDate, 0).In(location).Format("2006-01-02 15:04:05"),
+		"credits_spent": creditsSpent,
+		"timestamp":     timestamp.Format("2006-01-02 15:04:05"), // Salva como string formatada
+	}
+
+	// Obtém a referência para a coleção "renew"
+	collection := config.MongoDB.Database("Logs").Collection("renew")
+
+	// Insere o log no MongoDB
+	_, err = collection.InsertOne(context.TODO(), logEntry)
+	if err != nil {
+		log.Printf("❌ Erro ao salvar log de renovação no MongoDB: %v", err)
+	} else {
+		log.Printf("✅ Log de renovação salvo no MongoDB: %+v", logEntry)
+	}
 }

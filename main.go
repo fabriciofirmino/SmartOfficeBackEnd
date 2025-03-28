@@ -49,7 +49,7 @@ func main() {
 	r := SetupServer()
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080" // Porta padrão
+		port = "8085" // Porta padrão
 	}
 	log.Printf("🚀 Servidor rodando na porta %s", port)
 	r.Run(":" + port)

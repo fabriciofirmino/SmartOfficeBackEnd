@@ -13,46 +13,54 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-// Crie uma configuração TLS que ignora a validação do certificado (não recomendado para produção)
-var tlsConfig = &tls.Config{
-	InsecureSkipVerify: true,
-}
-
-// MongoDB é a instância global para conexão
 var MongoDB *mongo.Client
 
-// InitMongo inicializa a conexão com o MongoDB
 func InitMongo() {
-	// Lê a string de conexão do MongoDB a partir da variável de ambiente
 	mongoURI := os.Getenv("MONGO_DB")
 	if mongoURI == "" {
 		log.Fatal("❌ ERRO: Variável de ambiente MONGO_DB não encontrada!")
 	}
 
-	// Configura a Stable API (ServerAPIOptions) – opcional, mas recomendado
+	// Configuração TLS mais robusta
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12, // Força TLS 1.2 ou superior
+	}
+
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
 	clientOpts := options.Client().
 		ApplyURI(mongoURI).
 		SetTLSConfig(tlsConfig).
-		SetServerAPIOptions(serverAPI)
+		SetServerAPIOptions(serverAPI).
+		SetConnectTimeout(30 * time.Second).        // Tempo maior para conexão
+		SetSocketTimeout(60 * time.Second).         // Tempo maior para operações
+		SetServerSelectionTimeout(30 * time.Second) // Tempo para selecionar servidor
 
-	// Conecta ao MongoDB
-	client, err := mongo.Connect(context.Background(), clientOpts)
-	if err != nil {
-		log.Fatalf("❌ ERRO ao criar cliente MongoDB: %v", err)
+	// Tentativa de conexão com retry
+	var client *mongo.Client
+	var err error
+	maxRetries := 3
+	for i := 0; i < maxRetries; i++ {
+		client, err = mongo.Connect(context.Background(), clientOpts)
+		if err == nil {
+			break
+		}
+		log.Printf("⚠️ Tentativa %d/%d falhou: %v", i+1, maxRetries, err)
+		time.Sleep(2 * time.Second)
 	}
 
-	// Cria um contexto com timeout para o ping (evita travar se algo der errado)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if err != nil {
+		log.Fatalf("❌ ERRO ao criar cliente MongoDB após %d tentativas: %v", maxRetries, err)
+	}
+
+	// Contexto com timeout maior para o ping
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Testa a conexão com um "ping"
 	err = client.Database("admin").RunCommand(ctx, bson.D{{Key: "ping", Value: 1}}).Err()
 	if err != nil {
 		log.Fatalf("❌ ERRO ao fazer ping no MongoDB: %v", err)
 	}
 
-	// Conexão bem-sucedida – atribui ao global
 	MongoDB = client
 	fmt.Println("✅ Conectado ao MongoDB com sucesso!")
 }
