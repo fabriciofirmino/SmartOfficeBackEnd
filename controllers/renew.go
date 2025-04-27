@@ -93,7 +93,7 @@ func RenewAccount(c *gin.Context) {
 	creditosDisponiveis := int(creditsFloat)
 
 	// 🔹 6️⃣ Definir custo e duração da renovação
-	diasRenovacao := req.QuantidadeRenovacaoMes * 31
+	diasRenovacao := req.QuantidadeRenovacaoMes * 30
 	log.Printf("Quantidade de meses para renovação: %d, Dias de renovação: %d", req.QuantidadeRenovacaoMes, diasRenovacao)
 
 	// 🔹 **Calcular custo total com base em quantidade de meses e telas (max_connections)**
