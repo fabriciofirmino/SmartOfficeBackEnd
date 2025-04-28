@@ -323,9 +323,13 @@ func RemoveScreen(c *gin.Context) {
 func EditUser(c *gin.Context) {
 	var req models.EditUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		log.Printf("❌ Erro no bind JSON: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"erro": "Dados inválidos"})
 		return
 	}
+
+	// Debug: logar o valor e tipo do campo MAC recebido
+	log.Printf("DEBUG - Valor recebido para MAC: %v (tipo: %T)", req.MAC, req.MAC)
 
 	// 📌 Obtém o ID do usuário pela URL
 	userID, err := strconv.Atoi(c.Param("id"))
@@ -419,7 +423,8 @@ func EditUser(c *gin.Context) {
 
 	// 📌 Processa os dados do aplicativo e salva como JSON no banco de dados
 	var appDataJSON string
-	if req.NomeDoAplicativo != "" || req.MAC != "" || req.DeviceID != 0 || req.VencimentoAplicativo != "" {
+	if req.NomeDoAplicativo != "" || req.MAC != "" || req.DeviceID != "" || req.VencimentoAplicativo != "" {
+		log.Printf("DEBUG - Montando appData com MAC: %v (tipo: %T)", req.MAC, req.MAC)
 		appData := map[string]interface{}{
 			"NomeDoAplicativo":     req.NomeDoAplicativo,
 			"MAC":                  req.MAC,
