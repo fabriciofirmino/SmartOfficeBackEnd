@@ -408,13 +408,13 @@ func EditUser(c *gin.Context) {
 		updateFields = append(updateFields, "reseller_notes = ?")
 		args = append(args, req.ResellerNotes)
 	}
-	if req.NumeroWhats != "" {
+	if req.NumeroWhats != nil {
 		updateFields = append(updateFields, "NUMERO_WHATS = ?")
-		args = append(args, req.NumeroWhats)
+		args = append(args, *req.NumeroWhats)
 	}
-	if req.NomeParaAviso != "" {
+	if req.NomeParaAviso != nil {
 		updateFields = append(updateFields, "NOME_PARA_AVISO = ?")
-		args = append(args, req.NomeParaAviso)
+		args = append(args, *req.NomeParaAviso)
 	}
 	if req.Bouquet != "" {
 		updateFields = append(updateFields, "bouquet = ?")
@@ -446,8 +446,12 @@ func EditUser(c *gin.Context) {
 	}
 
 	if req.EnviarNotificacao != nil {
+		val := 0
+		if *req.EnviarNotificacao {
+			val = 1
+		}
 		updateFields = append(updateFields, "ENVIAR_NOTIFICACAO = ?")
-		args = append(args, *req.EnviarNotificacao)
+		args = append(args, val)
 	}
 
 	if len(updateFields) == 0 {
@@ -491,6 +495,37 @@ func EditUser(c *gin.Context) {
 		return
 	}
 
+	// Variáveis temporárias para log
+	var numeroWhatsLog, nomeParaAvisoLog string
+	if req.NumeroWhats != nil {
+		numeroWhatsLog = *req.NumeroWhats
+	} else if oldUser.NumeroWhats != nil {
+		numeroWhatsLog = *oldUser.NumeroWhats
+	}
+	if req.NomeParaAviso != nil {
+		nomeParaAvisoLog = *req.NomeParaAviso
+	} else if oldUser.NomeParaAviso != nil {
+		nomeParaAvisoLog = *oldUser.NomeParaAviso
+	}
+
+	// Para o log, ajuste para mostrar o valor inteiro (0/1) ou nil
+	var enviarNotificacaoLog interface{}
+	if req.EnviarNotificacao != nil {
+		if *req.EnviarNotificacao {
+			enviarNotificacaoLog = 1
+		} else {
+			enviarNotificacaoLog = 0
+		}
+	} else if oldUser.EnviarNotificacao != nil {
+		if *oldUser.EnviarNotificacao {
+			enviarNotificacaoLog = 1
+		} else {
+			enviarNotificacaoLog = 0
+		}
+	} else {
+		enviarNotificacaoLog = nil
+	}
+
 	// 📌 Salva Log no MongoDB com valores antigos e novos
 	saveAuditLog("edit_user", userID, bson.M{
 		"valores_anteriores": bson.M{
@@ -507,9 +542,9 @@ func EditUser(c *gin.Context) {
 			"username":           req.Username,
 			"password":           req.Password,
 			"reseller_notes":     req.ResellerNotes,
-			"numero_whats":       req.NumeroWhats,
-			"nome_para_aviso":    req.NomeParaAviso,
-			"enviar_notificacao": req.EnviarNotificacao,
+			"numero_whats":       numeroWhatsLog,
+			"nome_para_aviso":    nomeParaAvisoLog,
+			"enviar_notificacao": enviarNotificacaoLog,
 			"bouquet":            req.Bouquet,
 			"aplicativo":         appDataJSON,
 		},
