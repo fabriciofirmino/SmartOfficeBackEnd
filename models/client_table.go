@@ -26,10 +26,12 @@ func (c ClientTableData) MarshalJSON() ([]byte, error) {
 	type Alias ClientTableData
 	return json.Marshal(&struct {
 		ExpDate       string `json:"exp_date"`
+		CreatedAt     string `json:"created_at"`
 		ResellerNotes string `json:"reseller_notes"`
 		Alias
 	}{
 		ExpDate:       nullStringToString(c.ExpDate),
+		CreatedAt:     nullStringToString(c.CreatedAt),
 		ResellerNotes: nullStringToString(c.ResellerNotes),
 		Alias:         (Alias)(c),
 	})
