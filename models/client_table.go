@@ -10,13 +10,14 @@ type ClientTableData struct {
 	ID             int                    `json:"id"`
 	Username       string                 `json:"username"`
 	Password       string                 `json:"password"`
-	ExpDate        sql.NullString         `json:"exp_date"`
+	ExpDate        sql.NullString         `json:"exp_date"` // ou string, conforme o banco
 	Enabled        int                    `json:"enabled"`
 	AdminEnabled   int                    `json:"admin_enabled"`
 	MaxConnections int                    `json:"max_connections"`
-	CreatedAt      string                 `json:"created_at"`
-	ResellerNotes  sql.NullString         `json:"reseller_notes"`
+	CreatedAt      sql.NullString         `json:"created_at"`     // ou string
+	ResellerNotes  sql.NullString         `json:"reseller_notes"` // ou string
 	IsTrial        int                    `json:"is_trial"`
+	Aplicativo     string                 `json:"aplicativo"`
 	Online         map[string]interface{} `json:"online"`
 }
 

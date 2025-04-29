@@ -4,6 +4,7 @@ import (
 	"apiBackEnd/config"
 	"apiBackEnd/models"
 	"apiBackEnd/utils"
+	"database/sql"
 	"log"
 	"net/http"
 	"strconv"
@@ -78,7 +79,7 @@ func GetClientsTable(c *gin.Context) {
 	}
 
 	// 📌 Consulta base para buscar todos os usuários do membro
-	query := `SELECT id, username, password, exp_date, enabled, admin_enabled, max_connections, created_at, reseller_notes, is_trial 
+	query := `SELECT id, username, password, exp_date, enabled, admin_enabled, max_connections, created_at, reseller_notes, is_trial, Aplicativo 
 			FROM users WHERE member_id = ?`
 	var args []interface{}
 	args = append(args, memberID)
@@ -111,13 +112,20 @@ func GetClientsTable(c *gin.Context) {
 	// 🔄 Processa todos os usuários antes de paginar
 	for rows.Next() {
 		var client models.ClientTableData
+		var expDate, createdAt, resellerNotes sql.NullString
+		var aplicativo sql.NullString
 		if err := rows.Scan(
-			&client.ID, &client.Username, &client.Password, &client.ExpDate, &client.Enabled,
-			&client.AdminEnabled, &client.MaxConnections, &client.CreatedAt, &client.ResellerNotes, &client.IsTrial,
+			&client.ID, &client.Username, &client.Password, &expDate, &client.Enabled,
+			&client.AdminEnabled, &client.MaxConnections, &createdAt, &resellerNotes, &client.IsTrial,
+			&aplicativo,
 		); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao processar os dados"})
 			return
 		}
+		client.ExpDate = expDate
+		client.CreatedAt = createdAt
+		client.ResellerNotes = resellerNotes
+		client.Aplicativo = aplicativo.String
 
 		// 📌 Associa status online se existir
 		if status, exists := onlineStatuses[client.ID]; exists {
