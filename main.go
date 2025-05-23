@@ -50,7 +50,7 @@ func main() {
 	r := SetupServer()
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "443" // Porta padrão
+		port = "8080" // Porta padrão
 	}
 	log.Printf("🚀 Servidor rodando na porta %s", port)
 	r.Run("0.0.0.0:" + port)

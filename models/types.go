@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
+	"time"
 )
 
 // NullString representa um valor SQL que pode ser nulo e compatível com JSON.
@@ -60,4 +61,27 @@ func (ni *NullInt64) UnmarshalJSON(data []byte) error {
 		ni.Valid = false
 	}
 	return nil
+}
+
+// Estruturas para controle de confiança, rollback e alteração de vencimento via Redis
+
+type TrustBonus struct {
+	DiasAdicionados int       `json:"dias_adicionados"`
+	DataLiberacao   time.Time `json:"data_liberacao"`
+	AdminID         string    `json:"admin_id"`
+	Motivo          string    `json:"motivo"`
+}
+
+type RenewBackup struct {
+	ExpDateAnterior int64     `json:"exp_date_anterior"`
+	CreditosGastos  float64   `json:"creditos_gastos"`
+	DataRenovacao   time.Time `json:"data_renovacao"`
+	AdminRenovou    string    `json:"admin_renovou"`
+}
+
+type ChangeDueDate struct {
+	NovaDataVencimento int       `json:"nova_data_vencimento"`
+	DataAlteracao      time.Time `json:"data_alteracao"`
+	AdminID            string    `json:"admin_id"`
+	Motivo             string    `json:"motivo"`
 }

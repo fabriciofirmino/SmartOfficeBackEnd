@@ -18,6 +18,73 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/change-due-date": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Altera o dia do vencimento da conta para o mês atual. Só pode ser feito uma vez a cada ALTERACAO_VENCIMENTO_FREQUENCIA_DIAS dias e o dia deve ser válido para o mês.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ações"
+                ],
+                "summary": "Alteração da data mensal de vencimento",
+                "parameters": [
+                    {
+                        "description": "Exemplo: {\\",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ChangeDueDateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Exemplo de resposta: {\\\"sucesso\\\": true, \\\"novo_exp_date\\\": 1716403200}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação ou regra de negócio",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token inválido ou não fornecido",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/clients": {
             "get": {
                 "security": [
@@ -435,6 +502,73 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/renew-rollback": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Desfaz a última renovação: remove 30 dias do exp_date e devolve créditos conforme quantidade de telas.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ações"
+                ],
+                "summary": "Rollback de renovação",
+                "parameters": [
+                    {
+                        "description": "Exemplo: {\\",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.RenewRollbackRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Exemplo de resposta: {\\\"sucesso\\\": true, \\\"exp_date_anterior\\\": 1716403200, \\\"exp_date_novo\\\": 1713792000, \\\"creditos_devolvidos\\\": 3}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação ou regra de negócio",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token inválido ou não fornecido",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/tools-table/add-screen": {
             "post": {
                 "security": [
@@ -643,6 +777,73 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/trust-bonus": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adiciona dias extras à conta do usuário, conforme regras parametrizadas. Só é permitido para contas vencidas, quantidade de dias entre CONFIANCA_DIAS_MIN e CONFIANCA_DIAS_MAX, e apenas uma vez a cada CONFIANCA_FREQUENCIA_DIAS dias.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Ações"
+                ],
+                "summary": "Liberação por confiança (dias extras)",
+                "parameters": [
+                    {
+                        "description": "Exemplo: {\\",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.TrustBonusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Exemplo de resposta: {\\\"sucesso\\\": true, \\\"novo_exp_date\\\": 1716403200}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Erro de validação ou regra de negócio",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token inválido ou não fornecido",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/version": {
             "get": {
                 "description": "Retorna a versão atual da API definida no arquivo .env",
@@ -760,6 +961,20 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "controllers.ChangeDueDateRequest": {
+            "type": "object",
+            "properties": {
+                "motivo": {
+                    "type": "string"
+                },
+                "nova_data_vencimento": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "controllers.DashboardResponse": {
             "type": "object",
             "properties": {
@@ -823,6 +1038,14 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.RenewRollbackRequest": {
+            "type": "object",
+            "properties": {
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "controllers.TestRequest": {
             "type": "object",
             "properties": {
@@ -839,6 +1062,20 @@ const docTemplate = `{
                 "username": {
                     "description": "Pode ser opcional",
                     "type": "string"
+                }
+            }
+        },
+        "controllers.TrustBonusRequest": {
+            "type": "object",
+            "properties": {
+                "dias_adicionados": {
+                    "type": "integer"
+                },
+                "motivo": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -1029,9 +1266,6 @@ const docTemplate = `{
         },
         "models.EditUserRequest": {
             "type": "object",
-            "required": [
-                "username"
-            ],
             "properties": {
                 "aplicativo": {
                     "type": "string"
@@ -1040,7 +1274,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "device_id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "enviar_notificacao": {
                     "type": "boolean"
@@ -1095,7 +1329,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8080",
+	Host:             "localhost:443",
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "API IPTV",

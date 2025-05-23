@@ -2,12 +2,14 @@ package controllers
 
 import (
 	"apiBackEnd/config"
+	"apiBackEnd/models"
 	"apiBackEnd/utils"
 	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -65,6 +67,8 @@ func RenewAccount(c *gin.Context) {
 		return
 	}
 
+	log.Printf("[DEBUG] Iniciando RenewAccount do userID: %d, Membro: %d", req.IDCliente, memberID)
+
 	// 🔹 4️⃣ Validar se o cliente pertence ao `member_id`
 	var userID, maxConnections int
 	var currentExpDate sql.NullInt64
@@ -84,6 +88,8 @@ func RenewAccount(c *gin.Context) {
 		return
 	}
 
+	log.Printf("[DEBUG] userID encontrado: %d - maxConnections: %d - expDate: %v", userID, maxConnections, currentExpDate)
+
 	// 🔹 5️⃣ Validar créditos disponíveis (antes da renovação)
 	creditsFloat, exists := claims["credits"].(float64)
 	if !exists {
@@ -99,6 +105,8 @@ func RenewAccount(c *gin.Context) {
 	// 🔹 **Calcular custo total com base em quantidade de meses e telas (max_connections)**
 	custoTotal := req.QuantidadeRenovacaoMes * maxConnections
 	log.Printf("Custo total calculado: %d (Quantidade de meses: %d * Máximo de conexões: %d)", custoTotal, req.QuantidadeRenovacaoMes, maxConnections)
+
+	log.Printf("[DEBUG] Créditos disponíveis: %d - Custo total: %d", creditosDisponiveis, custoTotal)
 
 	if creditosDisponiveis < custoTotal {
 		log.Printf("Créditos insuficientes. Disponível: %d, Necessário: %d", creditosDisponiveis, custoTotal)
@@ -126,7 +134,10 @@ func RenewAccount(c *gin.Context) {
 	newExpDate = time.Date(newExpDate.Year(), newExpDate.Month(), newExpDate.Day(), 23, 0, 0, 0, time.Local)
 	newExpDateEpoch := newExpDate.Unix()
 
+	log.Printf("[DEBUG] Nova exp_date calculada (Epoch): %d", newExpDateEpoch)
+
 	// 🔹 8️⃣ Transação para atualização segura
+	log.Printf("[DEBUG] Iniciando transação para renovação")
 	tx, err := config.DB.Begin()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao iniciar transação"})
@@ -164,7 +175,7 @@ func RenewAccount(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Créditos restantes para memberID %d: %d", memberID, creditosRestantes)
+	log.Printf("[DEBUG] Créditos restantes para memberID %d: %d", memberID, creditosRestantes)
 
 	// 🔹 **Renovar assinatura**
 	_, err = tx.Exec("UPDATE streamcreed_db.users SET exp_date = ?, is_trial = '0' WHERE id = ?", newExpDateEpoch, userID)
@@ -174,12 +185,36 @@ func RenewAccount(c *gin.Context) {
 		return
 	}
 
+	// Salve o exp_date antes da renovação (precisa ser ANTES de atualizar no banco)
+	expDateAntes := int64(0)
+	if currentExpDate.Valid {
+		expDateAntes = currentExpDate.Int64
+	} else {
+		expDateAntes = time.Now().Unix()
+	}
+
 	// 🔹 **Finalizar transação**
 	err = tx.Commit()
 	if err != nil {
 		log.Printf("Erro ao finalizar transação para memberID %d: %v", memberID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao finalizar transação"})
 		return
+	}
+	log.Printf("[DEBUG] Transação finalizada. Salvando backup no Redis...")
+
+	// --- SALVAR BACKUP DA RENOVAÇÃO NO REDIS ---
+	backup := models.RenewBackup{
+		ExpDateAnterior: expDateAntes,
+		CreditosGastos:  float64(custoTotal),
+		DataRenovacao:   time.Now(),
+		AdminRenovou:    claims["username"].(string),
+	}
+	redisKey := "renew_backup:" + strconv.Itoa(userID)
+
+	if err := utils.SaveToRedisJSON(c, redisKey, backup, utils.GetRollbackPermitidoDias()*86400); err != nil {
+		log.Printf("❌ Erro ao salvar backup no Redis: %v", err)
+	} else {
+		log.Printf("[DEBUG] Backup de renovação salvo no Redis: %s", redisKey)
 	}
 
 	// 🔹 **Salvar log no MongoDB**

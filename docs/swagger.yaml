@@ -1,5 +1,14 @@
 basePath: /
 definitions:
+  controllers.ChangeDueDateRequest:
+    properties:
+      motivo:
+        type: string
+      nova_data_vencimento:
+        type: integer
+      user_id:
+        type: integer
+    type: object
   controllers.DashboardResponse:
     properties:
       totalClientes:
@@ -41,6 +50,11 @@ definitions:
       quantidade_renovacao_em_meses:
         type: integer
     type: object
+  controllers.RenewRollbackRequest:
+    properties:
+      user_id:
+        type: integer
+    type: object
   controllers.TestRequest:
     properties:
       nome_para_aviso:
@@ -53,6 +67,15 @@ definitions:
       username:
         description: Pode ser opcional
         type: string
+    type: object
+  controllers.TrustBonusRequest:
+    properties:
+      dias_adicionados:
+        type: integer
+      motivo:
+        type: string
+      user_id:
+        type: integer
     type: object
   models.ClientData:
     properties:
@@ -199,7 +222,7 @@ definitions:
       bouquet:
         type: string
       device_id:
-        type: integer
+        type: string
       enviar_notificacao:
         type: boolean
       mac:
@@ -218,8 +241,6 @@ definitions:
         type: string
       vencimento_aplicativo:
         type: string
-    required:
-    - username
     type: object
   models.ScreenRequest:
     properties:
@@ -228,7 +249,7 @@ definitions:
     required:
     - userID
     type: object
-host: localhost:8080
+host: localhost:443
 info:
   contact:
     email: suporte@example.com
@@ -237,6 +258,52 @@ info:
   title: API IPTV
   version: "1.0"
 paths:
+  /api/change-due-date:
+    post:
+      consumes:
+      - application/json
+      description: Altera o dia do vencimento da conta para o mês atual. Só pode ser
+        feito uma vez a cada ALTERACAO_VENCIMENTO_FREQUENCIA_DIAS dias e o dia deve
+        ser válido para o mês.
+      parameters:
+      - description: 'Exemplo: {\'
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.ChangeDueDateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo de resposta: {\"sucesso\": true, \"novo_exp_date\":
+            1716403200}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro de validação ou regra de negócio
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Alteração da data mensal de vencimento
+      tags:
+      - Ações
   /api/clients:
     get:
       consumes:
@@ -509,6 +576,51 @@ paths:
       summary: Renovar Conta
       tags:
       - Renovação
+  /api/renew-rollback:
+    post:
+      consumes:
+      - application/json
+      description: 'Desfaz a última renovação: remove 30 dias do exp_date e devolve
+        créditos conforme quantidade de telas.'
+      parameters:
+      - description: 'Exemplo: {\'
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.RenewRollbackRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo de resposta: {\"sucesso\": true, \"exp_date_anterior\":
+            1716403200, \"exp_date_novo\": 1713792000, \"creditos_devolvidos\": 3}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro de validação ou regra de negócio
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Rollback de renovação
+      tags:
+      - Ações
   /api/tools-table/add-screen:
     post:
       consumes:
@@ -645,6 +757,52 @@ paths:
       summary: Remove uma tela do usuário
       tags:
       - ToolsTable
+  /api/trust-bonus:
+    post:
+      consumes:
+      - application/json
+      description: Adiciona dias extras à conta do usuário, conforme regras parametrizadas.
+        Só é permitido para contas vencidas, quantidade de dias entre CONFIANCA_DIAS_MIN
+        e CONFIANCA_DIAS_MAX, e apenas uma vez a cada CONFIANCA_FREQUENCIA_DIAS dias.
+      parameters:
+      - description: 'Exemplo: {\'
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.TrustBonusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo de resposta: {\"sucesso\": true, \"novo_exp_date\":
+            1716403200}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro de validação ou regra de negócio
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Liberação por confiança (dias extras)
+      tags:
+      - Ações
   /api/version:
     get:
       description: Retorna a versão atual da API definida no arquivo .env

@@ -35,5 +35,8 @@ func SetupRoutes(r *gin.Engine) {
 		protected.POST("/tools-table/add-screen", controllers.AddScreen)
 		protected.POST("/tools-table/remove-screen", controllers.RemoveScreen)
 		protected.PUT("/tools-table/edit/:id", controllers.EditUser)
+		protected.POST("/trust-bonus", controllers.TrustBonusHandler)
+		protected.POST("/renew-rollback", controllers.RenewRollbackHandler)
+		protected.POST("/change-due-date", controllers.ChangeDueDateHandler)
 	}
 }

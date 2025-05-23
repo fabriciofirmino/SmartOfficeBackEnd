@@ -13,6 +13,10 @@ import (
 
 var DB *sql.DB
 
+func init() {
+	godotenv.Load(".env")
+}
+
 func ConnectDB() {
 	// Carregar variáveis do .env
 	err := godotenv.Load()
