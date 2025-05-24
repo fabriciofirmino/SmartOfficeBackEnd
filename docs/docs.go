@@ -946,15 +946,6 @@ const docTemplate = `{
                         "name": "user_id",
                         "in": "path",
                         "required": true
-                    },
-                    {
-                        "description": "Payload com o motivo da exclusão",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.SoftDeletePayload"
-                        }
                     }
                 ],
                 "responses": {
@@ -966,7 +957,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "ID ou payload inválido",
+                        "description": "ID inválido",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1872,17 +1863,6 @@ const docTemplate = `{
             "properties": {
                 "userID": {
                     "type": "integer"
-                }
-            }
-        },
-        "models.SoftDeletePayload": {
-            "type": "object",
-            "required": [
-                "delete_reason"
-            ],
-            "properties": {
-                "delete_reason": {
-                    "type": "string"
                 }
             }
         },

@@ -357,9 +357,8 @@ func KickUserSessionHandler(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param user_id path int true "ID do Usuário"
-// @Param body body models.SoftDeletePayload true "Payload"
 // @Success 200 {object} map[string]interface{} "Exemplo: {\"message\": \"Usuário excluído logicamente com sucesso\"}"
-// @Failure 400 {object} map[string]string "ID ou payload inválido"
+// @Failure 400 {object} map[string]string "ID inválido"
 // @Failure 401 {object} map[string]string "Token inválido"
 // @Failure 404 {object} map[string]string "Usuário não encontrado"
 // @Failure 500 {object} map[string]string "Erro interno"
@@ -391,12 +390,6 @@ func SoftDeleteUserHandler(c *gin.Context) {
 
 	if !hasPermission {
 		c.JSON(http.StatusForbidden, gin.H{"error": "Você não tem permissão para excluir este usuário"})
-		return
-	}
-
-	var payload models.SoftDeletePayload
-	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Payload inválido: " + err.Error()})
 		return
 	}
 

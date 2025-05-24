@@ -272,13 +272,6 @@ definitions:
     required:
     - userID
     type: object
-  models.SoftDeletePayload:
-    properties:
-      delete_reason:
-        type: string
-    required:
-    - delete_reason
-    type: object
   models.UserRegionPayload:
     properties:
       forced_country:
@@ -887,12 +880,6 @@ paths:
         name: user_id
         required: true
         type: integer
-      - description: Payload com o motivo da exclusão
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/models.SoftDeletePayload'
       produces:
       - application/json
       responses:
@@ -903,7 +890,7 @@ paths:
             additionalProperties: true
             type: object
         "400":
-          description: ID ou payload inválido
+          description: ID inválido
           schema:
             additionalProperties:
               type: string
