@@ -509,7 +509,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Desfaz a última renovação: remove 30 dias do exp_date e devolve créditos conforme quantidade de telas.",
+                "description": "Desfaz a última renovação: restaura exp_date e créditos a partir do backup da última renovação. Só pode ser feito uma vez a cada ROLLBACK_PERMITIDO_FREQUENCIA dias e dentro do período de ROLLBACK_PERMITIDO_DIAS após a renovação.",
                 "consumes": [
                     "application/json"
                 ],
@@ -533,7 +533,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Exemplo de resposta: {\\\"sucesso\\\": true, \\\"exp_date_anterior\\\": 1716403200, \\\"exp_date_novo\\\": 1713792000, \\\"creditos_devolvidos\\\": 3}",
+                        "description": "Exemplo de resposta: {\\\"sucesso\\\": true, \\\"exp_date_anterior\\\": 1716403200, \\\"exp_date_restaurado\\\": 1716403200, \\\"creditos_devolvidos\\\": 3}",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -857,6 +857,41 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "Versão da API",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Check the health of the service, including database and Redis connections",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "health"
+                ],
+                "summary": "Health Check",
+                "responses": {
+                    "200": {
+                        "description": "Exemplo: {\\\"status\\\": \\\"OK\\\", \\\"database\\\": \\\"OK\\\", \\\"redis\\\": \\\"OK\\\"}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Exemplo: {\\\"status\\\": \\\"Error\\\", \\\"database\\\": \\\"Error: connection failed\\\", \\\"redis\\\": \\\"OK\\\"}",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {

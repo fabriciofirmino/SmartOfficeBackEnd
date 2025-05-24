@@ -12,7 +12,7 @@ import (
 )
 
 // @title API IPTV
-// @version 1.0
+// @version 1.0.5
 // @description Documentação da API IPTV
 
 // @contact.name Suporte
@@ -25,7 +25,6 @@ import (
 // @in header
 // @name Authorization
 // SetupServer inicializa e retorna o router do Gin (para uso nos testes)
-// oi
 func SetupServer() *gin.Engine {
 	// Carregar variáveis de ambiente
 	if err := godotenv.Load(); err != nil {

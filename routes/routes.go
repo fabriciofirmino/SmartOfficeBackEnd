@@ -21,6 +21,9 @@ func SetupRoutes(r *gin.Engine) {
 	// 📌 Rota para obter a versão da API
 	r.GET("/api/version", controllers.GetAPIVersion)
 
+	// 📌 Rota de Health Check
+	r.GET("/health", controllers.HealthCheck)
+
 	// 📌 Grupo de rotas protegidas
 	protected := r.Group("/api")
 	protected.Use(controllers.AuthMiddleware()) // ✅ Certifique-se que esta função existe
