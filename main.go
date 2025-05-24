@@ -38,7 +38,11 @@ func SetupServer() *gin.Engine {
 
 	// Criar servidor
 	r := gin.Default()
+
+	// Aplicar Middlewares Globais
 	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.IPFilterMiddleware()) // Aplicar o filtro de IP
+
 	routes.SetupRoutes(r)
 
 	return r
