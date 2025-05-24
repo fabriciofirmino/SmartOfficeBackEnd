@@ -215,6 +215,29 @@ definitions:
         example: 00:1A:2B:3C:4D:5E
         type: string
     type: object
+  models.DeletedUser:
+    properties:
+      delete_reason:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
+        type: integer
+      email:
+        type: string
+      exp_date:
+        type: integer
+      id:
+        type: integer
+      last_login:
+        type: string
+      max_connections:
+        type: integer
+      member_id:
+        type: integer
+      username:
+        type: string
+    type: object
   models.EditUserRequest:
     properties:
       aplicativo:
@@ -249,14 +272,34 @@ definitions:
     required:
     - userID
     type: object
-host: localhost:443
+  models.SoftDeletePayload:
+    properties:
+      delete_reason:
+        type: string
+    required:
+    - delete_reason
+    type: object
+  models.UserRegionPayload:
+    properties:
+      forced_country:
+        description: 'Ex: "US"'
+        type: string
+    required:
+    - forced_country
+    type: object
+  models.UserStatusPayload:
+    properties:
+      enabled:
+        type: boolean
+    type: object
+host: localhost:8080
 info:
   contact:
     email: suporte@example.com
     name: Suporte
   description: Documentação da API IPTV
   title: API IPTV
-  version: "1.0"
+  version: 1.0.5
 paths:
   /api/change-due-date:
     post:
@@ -533,6 +576,34 @@ paths:
       summary: Detalhes dos erros do usuário com paginação
       tags:
       - Erros
+  /api/regions/allowed:
+    get:
+      description: Retorna as regiões permitidas configuradas na tabela settings como
+        array de siglas.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo: {\"allowed_countries\": [\"AR\", \"AU\", \"BR\",
+            \"CA\", \"EU\", \"FR\", \"DE\", \"JP\", \"PT\", \"RU\", \"SA\", \"ZA\",
+            \"UA\", \"US\"]}'
+          schema:
+            additionalProperties:
+              items:
+                type: string
+              type: array
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obter Regiões Permitidas
+      tags:
+      - Gerenciamento de Regiões
   /api/renew:
     post:
       consumes:
@@ -805,6 +876,301 @@ paths:
       summary: Liberação por confiança (dias extras)
       tags:
       - Ações
+  /api/users/{user_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Marca o usuário como desativado e registra a exclusão lógica.
+      parameters:
+      - description: ID do Usuário
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: Payload com o motivo da exclusão
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.SoftDeletePayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo: {\"message\": \"Usuário excluído logicamente com
+            sucesso\"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID ou payload inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Usuário não encontrado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Exclusão Lógica de Conta
+      tags:
+      - Gerenciamento de Usuários
+  /api/users/{user_id}/region:
+    patch:
+      consumes:
+      - application/json
+      description: Altera o campo "forced_country" do usuário.
+      parameters:
+      - description: ID do Usuário
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: 'Payload com o país forçado (ex: US)'
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserRegionPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo: {\"message\": \"Região do usuário atualizada com
+            sucesso\"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID ou payload inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Usuário não tem permissão para alterar este usuário
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Usuário não encontrado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Forçar Região para Usuário
+      tags:
+      - Gerenciamento de Usuários
+  /api/users/{user_id}/restore:
+    patch:
+      description: Restaura a conta do usuário removendo os campos de exclusão lógica.
+      parameters:
+      - description: ID do Usuário
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: 'Exemplo: {\"message\": \"Usuário restaurado com sucesso\"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Usuário não encontrado ou não está excluído
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Restaurar Conta
+      tags:
+      - Gerenciamento de Usuários
+  /api/users/{user_id}/session:
+    delete:
+      description: Remove a sessão ativa do usuário da tabela "user_activity_now".
+      parameters:
+      - description: ID do Usuário
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: 'Exemplo: {\"message\": \"Sessão do usuário removida com sucesso\"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Usuário não tem permissão para expulsar este usuário
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Usuário não encontrado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Expulsar Usuário (Kick)
+      tags:
+      - Gerenciamento de Usuários
+  /api/users/{user_id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Altera o campo "enabled" do usuário.
+      parameters:
+      - description: ID do Usuário
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: Payload contendo o novo status do usuário
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserStatusPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo: {\"message\": \"Status do usuário atualizado com
+            sucesso\"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID ou payload inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Usuário não tem permissão para alterar este usuário
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Usuário não encontrado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ativar/Desativar Conta
+      tags:
+      - Gerenciamento de Usuários
+  /api/users/deleted:
+    get:
+      description: Retorna a lista de usuários que foram excluídos logicamente nos
+        últimos 30 dias.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista de usuários excluídos
+          schema:
+            items:
+              $ref: '#/definitions/models.DeletedUser'
+            type: array
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Listar Contas Excluídas
+      tags:
+      - Gerenciamento de Usuários
   /api/version:
     get:
       description: Retorna a versão atual da API definida no arquivo .env

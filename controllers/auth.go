@@ -9,7 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// AuthMiddleware valida o token JWT nas rotas protegidas
+// AuthMiddleware valida o token JWT nas rotas protegidas.
+// Esta função agora reside em controllers/auth.go
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
@@ -19,12 +20,21 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 📌 Capturar corretamente os três valores retornados pela função `ValidateToken`
-		_, _, err := utils.ValidateToken(tokenString)
+		claims, _, err := utils.ValidateToken(tokenString)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token inválido"})
+			c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token inválido ou expirado"})
 			c.Abort()
 			return
+		}
+
+		if claims != nil {
+			c.Set("claims", claims)
+			if memberID, ok := claims["member_id"].(float64); ok {
+				c.Set("member_id", int(memberID))
+			}
+			if username, ok := claims["username"].(string); ok {
+				c.Set("username", username)
+			}
 		}
 
 		c.Next()

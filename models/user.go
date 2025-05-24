@@ -2,78 +2,77 @@ package models
 
 import (
 	"apiBackEnd/config"
-	"apiBackEnd/utils"
-	"log"
-	"net/http"
+	"database/sql"
+	"fmt"
 	"os"
 	"strings"
-
-	"github.com/gin-gonic/gin"
 )
 
-// AuthMiddleware valida o token JWT nas rotas protegidas
-func AuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		tokenString := c.GetHeader("Authorization")
-		if tokenString == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token não fornecido"})
-			c.Abort()
-			return
-		}
-
-		// 📌 Captura os três valores retornados por `ValidateToken`
-		_, _, err := utils.ValidateToken(tokenString)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"erro": "Token inválido"})
-			c.Abort()
-			return
-		}
-
-		c.Next()
-	}
-}
-
-// Estrutura do usuário retornado do banco
+// User representa a estrutura do usuário
 type User struct {
 	Username      string
 	PasswordHash  string
 	MemberGroupID int
 	Credits       float64
 	Status        int
-	MemberID      int // 🔥 Corrigido: Agora "MemberID" com "D" maiúsculo
+	MemberID      int
+	// Adicione outros campos que você possa ter
 }
 
-// Buscar usuário pelo username
+// GetUserByUsername busca um usuário pelo nome, considerando ALLOWED_USERS.
 func GetUserByUsername(username string) (*User, error) {
-	var user User
-
-	allowedUsers := os.Getenv("ALLOWED_USERS")
-	baseQuery := `
-		SELECT username, password, ru.member_group_id, credits, status, id as member_id
-		FROM streamcreed_db.reg_users AS ru
-		WHERE username = ?
-	`
-	args := []interface{}{username}
-
-	if allowedUsers != "" {
-		// Constrói placeholders "?" para cada usuário permitido
-		list := strings.Split(allowedUsers, ",")
-		placeholders := []string{}
-		for _, usr := range list {
-			placeholders = append(placeholders, "?")
-			args = append(args, strings.TrimSpace(usr))
-		}
-		baseQuery += " AND ru.username IN (" + strings.Join(placeholders, ",") + ")"
+	if config.DB == nil {
+		return nil, fmt.Errorf("conexão com banco de dados não inicializada")
 	}
 
-	err := config.DB.QueryRow(baseQuery, args...).Scan(
-		&user.Username, &user.PasswordHash, &user.MemberGroupID, &user.Credits, &user.Status, &user.MemberID,
+	allowedUsersEnv := os.Getenv("ALLOWED_USERS")
+	if allowedUsersEnv != "" {
+		isAllowed := false
+		allowedUsersList := strings.Split(allowedUsersEnv, ",")
+		for _, allowedUser := range allowedUsersList {
+			if strings.TrimSpace(allowedUser) == username {
+				isAllowed = true
+				break
+			}
+		}
+		if !isAllowed {
+			// Usuário não está na lista de permitidos, retorna erro similar a "não encontrado"
+			// para não vazar informação de que o usuário existe mas não está permitido.
+			return nil, sql.ErrNoRows
+		}
+	}
+
+	// Se chegou aqui, ou ALLOWED_USERS está vazio, ou o username está na lista.
+	// Prossegue com a busca normal.
+	query := `
+		SELECT username, password, member_group_id, credits, status, id as member_id
+		FROM streamcreed_db.reg_users
+		WHERE username = ?
+	`
+	// Nota: No seu exemplo anterior, a tabela era streamcreed_db.reg_users AS ru.
+	// Se você usa alias, certifique-se de que os nomes das colunas estão corretos (ex: ru.member_group_id).
+	// Para simplificar, removi o alias 'ru' aqui, ajuste se necessário.
+
+	user := &User{}
+	err := config.DB.QueryRow(query, username).Scan(
+		&user.Username,
+		&user.PasswordHash,
+		&user.MemberGroupID,
+		&user.Credits,
+		&user.Status,
+		&user.MemberID,
 	)
 
 	if err != nil {
-		log.Println("Erro ao buscar usuário:", err)
-		return nil, err
+		if err == sql.ErrNoRows {
+			return nil, sql.ErrNoRows // Usuário não encontrado
+		}
+		// Logar o erro real para depuração interna
+		// log.Printf("Erro ao buscar usuário %s: %v", username, err)
+		return nil, fmt.Errorf("erro ao buscar usuário: %w", err)
 	}
 
-	return &user, nil
+	return user, nil
 }
+
+// Outras funções do model user.go ...

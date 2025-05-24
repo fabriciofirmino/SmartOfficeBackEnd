@@ -18,7 +18,7 @@ import (
 // @contact.name Suporte
 // @contact.email suporte@example.com
 
-// @host localhost:443
+// @host localhost:8080
 // @BasePath /
 
 // @securityDefinitions.apikey BearerAuth

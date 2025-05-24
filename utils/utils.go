@@ -1,17 +1,18 @@
 package utils
 
 import (
+	"apiBackEnd/config"
+	"apiBackEnd/models"
+	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/json"
+	"fmt"
+	"log"
 	"math/big"
 	"os"
 	"strconv"
 	"time"
-
-	"apiBackEnd/config"
-	"context"
-	"fmt"
-	"log"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -107,7 +108,7 @@ func GetRollbackPermitidoFrequencia() int {
 	return val
 }
 
-// Salva log de ação em uma collection MongoDB "actions_log"
+// SaveActionLog registra um log genérico na collection "actions_log"
 func SaveActionLog(userID int, action string, details interface{}, adminID string) error {
 	if config.MongoDB == nil {
 		return fmt.Errorf("MongoDB não inicializado")
@@ -115,7 +116,6 @@ func SaveActionLog(userID int, action string, details interface{}, adminID strin
 	collection := config.MongoDB.Database("Logs").Collection("actions_log")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
 	logEntry := bson.M{
 		"user_id":   userID,
 		"action":    action,
@@ -123,9 +123,83 @@ func SaveActionLog(userID int, action string, details interface{}, adminID strin
 		"admin_id":  adminID,
 		"timestamp": time.Now(),
 	}
-
 	_, err := collection.InsertOne(ctx, logEntry)
 	return err
+}
+
+// SaveAccountManagementAction registra logs de gerenciamento de conta na collection "logs_account_actions".
+func SaveAccountManagementAction(ctx context.Context, action string, userID int, adminID int, details map[string]interface{}) {
+	if config.MongoDB == nil {
+		log.Println("MongoDB não inicializado, log de ação de conta não salvo:", action, "para user_id:", userID)
+		return
+	}
+	collection := config.MongoDB.Database("Logs").Collection("logs_account_actions")
+	logEntry := models.AuditLogEntry{
+		Action:    action,
+		UserID:    userID,
+		AdminID:   adminID,
+		Timestamp: time.Now(),
+		Details:   details,
+	}
+	_, err := collection.InsertOne(ctx, logEntry)
+	if err != nil {
+		log.Printf("Erro ao salvar log de ação de conta (%s) para user_id %d no MongoDB: %v", action, userID, err)
+	} else {
+		log.Printf("Log de ação de conta salvo: %s para user_id: %d por admin_id: %d", action, userID, adminID)
+	}
+}
+
+// GetUserCurrentState busca o estado atual do usuário para registrar os logs "from"
+// Retorna um mapa com campos relevantes ou erro se não encontrado.
+func GetUserCurrentState(userID int) (map[string]interface{}, error) {
+	var enabled sql.NullBool
+	var forcedCountry sql.NullString
+	if config.DB == nil {
+		return nil, fmt.Errorf("conexão com banco de dados não inicializada")
+	}
+	query := "SELECT enabled, forced_country FROM streamcreed_db.users WHERE id = ?"
+	err := config.DB.QueryRow(query, userID).Scan(&enabled, &forcedCountry)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("usuário %d não encontrado", userID)
+		}
+		return nil, err
+	}
+	state := make(map[string]interface{})
+	if enabled.Valid {
+		state["enabled"] = enabled.Bool
+	} else {
+		state["enabled"] = nil
+	}
+	if forcedCountry.Valid {
+		state["forced_country"] = forcedCountry.String
+	} else {
+		state["forced_country"] = nil
+	}
+	return state, nil
+}
+
+// Salva um valor em formato JSON no Redis com um tempo de expiração em segundos
+func SaveToRedisJSON(ctx context.Context, key string, value interface{}, ttlSeconds int) error {
+	log.Printf("Redis: Tentando salvar chave: %s, TTL: %d segundos", key, ttlSeconds)
+	data, err := json.Marshal(value)
+	if err != nil {
+		log.Printf("Redis: Erro ao serializar JSON para chave %s: %v", key, err)
+		return err
+	}
+
+	if config.RedisClient == nil {
+		log.Printf("Redis: Cliente Redis não inicializado para chave %s", key)
+		return fmt.Errorf("cliente Redis não inicializado")
+	}
+
+	statusCmd := config.RedisClient.Set(ctx, key, data, time.Duration(ttlSeconds)*time.Second)
+	if err := statusCmd.Err(); err != nil {
+		log.Printf("Redis: Erro ao executar SET para chave %s no Redis: %v", key, err)
+		return err
+	}
+	log.Printf("Redis: Chave %s salva com sucesso no Redis. Resultado: %s", key, statusCmd.Val())
+	return nil
 }
 
 // TokenInfo contém dados extraídos do token JWT
@@ -160,27 +234,4 @@ func ValidateAndExtractToken(c *gin.Context) (*TokenInfo, bool) {
 		MemberID: int(memberIDFloat),
 		Username: username,
 	}, true
-}
-
-// Salva um valor em formato JSON no Redis com um tempo de expiração em segundos
-func SaveToRedisJSON(ctx context.Context, key string, value interface{}, ttlSeconds int) error {
-	log.Printf("Redis: Tentando salvar chave: %s, TTL: %d segundos", key, ttlSeconds)
-	data, err := json.Marshal(value)
-	if err != nil {
-		log.Printf("Redis: Erro ao serializar JSON para chave %s: %v", key, err)
-		return err
-	}
-
-	if config.RedisClient == nil {
-		log.Printf("Redis: Cliente Redis não inicializado para chave %s", key)
-		return fmt.Errorf("cliente Redis não inicializado")
-	}
-
-	statusCmd := config.RedisClient.Set(ctx, key, data, time.Duration(ttlSeconds)*time.Second)
-	if err := statusCmd.Err(); err != nil {
-		log.Printf("Redis: Erro ao executar SET para chave %s no Redis: %v", key, err)
-		return err
-	}
-	log.Printf("Redis: Chave %s salva com sucesso no Redis. Resultado: %s", key, statusCmd.Val())
-	return nil
 }

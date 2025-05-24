@@ -2,32 +2,29 @@ package routes
 
 import (
 	"apiBackEnd/controllers"
-	_ "apiBackEnd/docs" // 🔥 Importação para Swagger funcionar
+	_ "apiBackEnd/docs" // Importação para Swagger funcionar
 
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"     // ✅ Correto
-	ginSwagger "github.com/swaggo/gin-swagger" // ✅ Correto
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // SetupRoutes configura todas as rotas da API
 func SetupRoutes(r *gin.Engine) {
-	// 📌 Rota do Swagger
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler)) // 🔥 Rota do Swagger
+	// Rota do Swagger
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// 📌 Rota de autenticação
+	// Rotas de autenticação e informações iniciais
 	r.POST("/login", controllers.Login)
 	r.POST("/logout", controllers.Logout)
-
-	// 📌 Rota para obter a versão da API
 	r.GET("/api/version", controllers.GetAPIVersion)
-
-	// 📌 Rota de Health Check
 	r.GET("/health", controllers.HealthCheck)
 
-	// 📌 Grupo de rotas protegidas
+	// Grupo de rotas protegidas centralizado sob "/api"
 	protected := r.Group("/api")
-	protected.Use(controllers.AuthMiddleware()) // ✅ Certifique-se que esta função existe
+	protected.Use(controllers.AuthMiddleware())
 	{
+		// Endpoints gerais
 		protected.GET("/clients", controllers.GetClients)
 		protected.GET("/clients-table", controllers.GetClientsTable)
 		protected.POST("/create-test", controllers.CreateTest)
@@ -41,5 +38,16 @@ func SetupRoutes(r *gin.Engine) {
 		protected.POST("/trust-bonus", controllers.TrustBonusHandler)
 		protected.POST("/renew-rollback", controllers.RenewRollbackHandler)
 		protected.POST("/change-due-date", controllers.ChangeDueDateHandler)
+
+		// Primeiro definir rotas fixas, depois rotas com parâmetros
+		protected.GET("/users/deleted", controllers.ListDeletedUsersHandler)
+		protected.GET("/regions/allowed", controllers.GetAllowedRegionsHandler)
+
+		// Depois as rotas com parâmetros
+		protected.PATCH("/users/:user_id/status", controllers.UpdateUserStatusHandler)
+		protected.PATCH("/users/:user_id/region", controllers.ForceUserRegionHandler)
+		protected.DELETE("/users/:user_id/session", controllers.KickUserSessionHandler)
+		protected.PATCH("/users/:user_id/restore", controllers.RestoreUserHandler)
+		protected.DELETE("/users/:user_id", controllers.SoftDeleteUserHandler)
 	}
 }
