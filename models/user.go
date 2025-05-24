@@ -5,6 +5,8 @@ import (
 	"apiBackEnd/utils"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,14 +47,26 @@ type User struct {
 func GetUserByUsername(username string) (*User, error) {
 	var user User
 
-	query := `
+	allowedUsers := os.Getenv("ALLOWED_USERS")
+	baseQuery := `
 		SELECT username, password, ru.member_group_id, credits, status, id as member_id
 		FROM streamcreed_db.reg_users AS ru
 		WHERE username = ?
 	`
+	args := []interface{}{username}
 
-	// 🔥 Corrigido: Agora `user.MemberID` (com "D" maiúsculo) corresponde ao nome da struct
-	err := config.DB.QueryRow(query, username).Scan(
+	if allowedUsers != "" {
+		// Constrói placeholders "?" para cada usuário permitido
+		list := strings.Split(allowedUsers, ",")
+		placeholders := []string{}
+		for _, usr := range list {
+			placeholders = append(placeholders, "?")
+			args = append(args, strings.TrimSpace(usr))
+		}
+		baseQuery += " AND ru.username IN (" + strings.Join(placeholders, ",") + ")"
+	}
+
+	err := config.DB.QueryRow(baseQuery, args...).Scan(
 		&user.Username, &user.PasswordHash, &user.MemberGroupID, &user.Credits, &user.Status, &user.MemberID,
 	)
 
