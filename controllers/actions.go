@@ -241,6 +241,13 @@ func RenewRollbackHandler(c *gin.Context) {
 		log.Printf("❌ Erro ao bloquear novo rollback no Redis para chave %s: %v", rollbackKey, err)
 	}
 
+	// --- REMOVE O BACKUP DO REDIS APÓS ROLLBACK EXECUTADO ---
+	if err := config.RedisClient.Del(c, backupKey).Err(); err != nil {
+		log.Printf("❌ Erro ao remover backup de renovação no Redis para chave %s: %v", backupKey, err)
+	} else {
+		log.Printf("✅ Backup de renovação removido do Redis para chave %s", backupKey)
+	}
+
 	// Log MongoDB
 	_ = utils.SaveActionLog(req.UserID, "renew_rollback", backup, tokenInfo.Username)
 
