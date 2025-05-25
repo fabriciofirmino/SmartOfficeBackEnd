@@ -108,9 +108,9 @@ func TrustBonusHandler(c *gin.Context) {
 		return
 	}
 
-	// Atualiza exp_date no banco
+	// Atualiza exp_date e enabled no banco
 	newExpDate := now + int64(req.DiasAdicionados*86400)
-	_, err = config.DB.Exec("UPDATE streamcreed_db.users SET exp_date = ? WHERE id = ?", newExpDate, req.UserID)
+	_, err = config.DB.Exec("UPDATE streamcreed_db.users SET exp_date = ?, enabled = 1 WHERE id = ?", newExpDate, req.UserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao atualizar exp_date"})
 		return
