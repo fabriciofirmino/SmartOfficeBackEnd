@@ -112,6 +112,7 @@ func TrustBonusHandler(c *gin.Context) {
 	newExpDate := now + int64(req.DiasAdicionados*86400)
 	_, err = config.DB.Exec("UPDATE streamcreed_db.users SET exp_date = ?, enabled = 1 WHERE id = ?", newExpDate, req.UserID)
 	if err != nil {
+		log.Printf("❌ Erro ao atualizar exp_date: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao atualizar exp_date"})
 		return
 	}
@@ -132,7 +133,15 @@ func TrustBonusHandler(c *gin.Context) {
 	// Log MongoDB
 	_ = utils.SaveActionLog(req.UserID, "trust_bonus", bonus, tokenInfo.Username)
 
-	c.JSON(http.StatusOK, gin.H{"sucesso": true, "novo_exp_date": newExpDate})
+	// Resposta padronizada de sucesso
+	log.Printf("✅ Trust bonus aplicado com sucesso para usuário %d", req.UserID)
+	c.JSON(http.StatusOK, gin.H{
+		"sucesso":          true,
+		"message":          "Bônus de confiança aplicado com sucesso",
+		"novo_exp_date":    newExpDate,
+		"dias_adicionados": req.DiasAdicionados,
+		"usuario_id":       req.UserID,
+	})
 }
 
 // Rollback de renovação
@@ -186,7 +195,7 @@ func RenewRollbackHandler(c *gin.Context) {
 	rollbackKey := "rollback_lock:" + strconv.Itoa(req.UserID)
 	val, err := config.RedisClient.Get(c, rollbackKey).Result() // c (gin.Context) é usado aqui
 	if err == nil && val != "" {
-		c.JSON(http.StatusBadRequest, gin.H{"erro": "Rollback já realizado recentemente para esta conta. Só é permitido um rollback a cada " + strconv.Itoa(utils.GetRollbackPermitidoFrequencia()) + " dias."})
+		c.JSON(http.StatusBadRequest, gin.H{"erro": "Reversão já realizado recentemente para esta conta. Só é permitido uma reversão a cada " + strconv.Itoa(utils.GetRollbackPermitidoFrequencia()) + " dias."})
 		return
 	}
 	// --- FIM DO BLOQUEIO ---
@@ -195,7 +204,7 @@ func RenewRollbackHandler(c *gin.Context) {
 	backupKey := "renew_backup:" + strconv.Itoa(req.UserID)
 	backupVal, err := config.RedisClient.Get(c, backupKey).Result() // c (gin.Context) é usado aqui
 	if err != nil || backupVal == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"erro": "Não há backup de renovação disponível para rollback ou o período expirou."})
+		c.JSON(http.StatusBadRequest, gin.H{"erro": "Não há backup de renovação disponível para reversão ou o período expirou."})
 		return
 	}
 	var backup models.RenewBackup
@@ -207,7 +216,7 @@ func RenewRollbackHandler(c *gin.Context) {
 	// --- VALIDAÇÃO DE JANELA DE ROLLBACK ---
 	rollbackDias := utils.GetRollbackPermitidoDias()
 	if time.Since(backup.DataRenovacao) > time.Duration(rollbackDias)*24*time.Hour {
-		c.JSON(http.StatusBadRequest, gin.H{"erro": "O prazo para rollback já expirou. Permitido até " + strconv.Itoa(rollbackDias) + " dias após a renovação."})
+		c.JSON(http.StatusBadRequest, gin.H{"erro": "O prazo para reversão já expirou. Permitido até " + strconv.Itoa(rollbackDias) + " dias após a renovação."})
 		return
 	}
 
@@ -217,6 +226,16 @@ func RenewRollbackHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao iniciar transação"})
 		return
 	}
+
+	// Buscar o username do usuário para o log
+	var username string
+	err = tx.QueryRow("SELECT username FROM streamcreed_db.users WHERE id = ?", req.UserID).Scan(&username)
+	if err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar dados do usuário"})
+		return
+	}
+
 	_, err = tx.Exec("UPDATE streamcreed_db.users SET exp_date = ? WHERE id = ?", backup.ExpDateAnterior, req.UserID)
 	if err != nil {
 		tx.Rollback()
@@ -226,9 +245,21 @@ func RenewRollbackHandler(c *gin.Context) {
 	_, err = tx.Exec("UPDATE streamcreed_db.reg_users SET credits = credits + ? WHERE id = ?", backup.CreditosGastos, tokenInfo.MemberID)
 	if err != nil {
 		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao devolver créditos"})
+		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao devolver créditos, tente novamente mais tarde."})
 		return
 	}
+
+	// Inserir log de créditos
+	logReason := "Reversão de renovação do " + username
+	_, err = tx.Exec("INSERT INTO streamcreed_db.credits_log (target_id, admin_id, amount, `date`, reason) VALUES (?, -1, ?, ?, ?)",
+		tokenInfo.MemberID, backup.CreditosGastos, time.Now().Unix(), logReason)
+	if err != nil {
+		tx.Rollback()
+		log.Printf("❌ Erro ao inserir log de créditos: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao registrar log de créditos"})
+		return
+	}
+
 	if err = tx.Commit(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao finalizar transação"})
 		return
@@ -238,7 +269,7 @@ func RenewRollbackHandler(c *gin.Context) {
 	ttl := utils.GetRollbackPermitidoFrequencia() * 86400
 	// Usar c (gin.Context) para o Set do Redis
 	if err := config.RedisClient.Set(c, rollbackKey, "1", time.Duration(ttl)*time.Second).Err(); err != nil {
-		log.Printf("❌ Erro ao bloquear novo rollback no Redis para chave %s: %v", rollbackKey, err)
+		log.Printf("❌ Erro ao bloquear novo reversão no Redis para chave %s: %v", rollbackKey, err)
 	}
 
 	// --- REMOVE O BACKUP DO REDIS APÓS ROLLBACK EXECUTADO ---
@@ -336,6 +367,7 @@ func ChangeDueDateHandler(c *gin.Context) {
 	novoVenc := time.Date(exp.Year(), exp.Month(), req.NovaDataVencimento, exp.Hour(), exp.Minute(), exp.Second(), 0, exp.Location())
 	_, err = config.DB.Exec("UPDATE streamcreed_db.users SET exp_date = ? WHERE id = ?", novoVenc.Unix(), req.UserID)
 	if err != nil {
+		log.Printf("❌ Erro ao atualizar exp_date: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao atualizar exp_date"})
 		return
 	}
@@ -354,5 +386,13 @@ func ChangeDueDateHandler(c *gin.Context) {
 	}
 	_ = utils.SaveActionLog(req.UserID, "change_due_date", change, tokenInfo.Username)
 
-	c.JSON(http.StatusOK, gin.H{"sucesso": true, "novo_exp_date": novoVenc.Unix()})
+	// Resposta padronizada de sucesso
+	log.Printf("✅ Data de vencimento alterada com sucesso para usuário %d", req.UserID)
+	c.JSON(http.StatusOK, gin.H{
+		"sucesso":              true,
+		"message":              "Data de vencimento alterada com sucesso",
+		"novo_exp_date":        novoVenc.Unix(),
+		"nova_data_vencimento": req.NovaDataVencimento,
+		"usuario_id":           req.UserID,
+	})
 }
