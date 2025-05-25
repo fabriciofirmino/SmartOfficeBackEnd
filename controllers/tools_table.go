@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"database/sql"
+
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -483,16 +485,27 @@ func EditUser(c *gin.Context) {
 
 	// 📌 Obtém os dados antigos do usuário para log
 	var oldUser models.EditUserRequest
+	var aplicativoNull sql.NullString // Use NullString para lidar com valores NULL
+
 	err = config.DB.QueryRow(`
 	SELECT username, password, reseller_notes, NUMERO_WHATS, NOME_PARA_AVISO, 
 	ENVIAR_NOTIFICACAO, bouquet, aplicativo 
 	FROM users WHERE id = ?`, userID).
 		Scan(&oldUser.Username, &oldUser.Password, &oldUser.ResellerNotes, &oldUser.NumeroWhats,
-			&oldUser.NomeParaAviso, &oldUser.EnviarNotificacao, &oldUser.Bouquet, &oldUser.Aplicativo)
+			&oldUser.NomeParaAviso, &oldUser.EnviarNotificacao, &oldUser.Bouquet, &aplicativoNull)
+
 	if err != nil {
 		log.Printf("❌ ERRO ao buscar dados antigos do usuário ID %d: %v", userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar dados antigos do usuário"})
 		return
+	}
+
+	// Atribui o valor de aplicativo apenas se for válido
+	if aplicativoNull.Valid {
+		oldUser.Aplicativo = aplicativoNull.String
+	} else {
+		// Define um valor vazio se for NULL
+		oldUser.Aplicativo = ""
 	}
 
 	// Variáveis temporárias para log
