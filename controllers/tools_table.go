@@ -317,6 +317,26 @@ func RemoveScreen(c *gin.Context) {
 // @Produce json
 // @Param id path int true "ID do usuário a ser editado"
 // @Param request body models.EditUserRequest true "Dados do usuário a serem editados"
+// @example
+//
+//	{
+//	  "username": "usuario",
+//	  "aplicativos": [
+//	    {
+//	      "device_id": "6541464646",
+//	      "mac": "7C:0A:3F:D5:71:D8",
+//	      "nome_do_aplicativo": "Duplecast",
+//	      "vencimento_aplicativo": "2025-12-31"
+//	    },
+//	    {
+//	      "device_id": "DVC002",
+//	      "mac": "00:1A:2B:3C:4D:5F",
+//	      "nome_do_aplicativo": "StreamPro",
+//	      "vencimento_aplicativo": "2024-12-30"
+//	    }
+//	  ]
+//	}
+//
 // @Success 200 {object} map[string]interface{} "Usuário editado com sucesso"
 // @Failure 400 {object} map[string]string "Erro na requisição"
 // @Failure 401 {object} map[string]string "Token inválido ou acesso negado"
@@ -329,9 +349,6 @@ func EditUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"erro": "Dados inválidos"})
 		return
 	}
-
-	// Debug: logar o valor e tipo do campo MAC recebido
-	log.Printf("DEBUG - Valor recebido para MAC: %v (tipo: %T)", req.MAC, req.MAC)
 
 	// 📌 Obtém o ID do usuário pela URL
 	userID, err := strconv.Atoi(c.Param("id"))
@@ -378,6 +395,7 @@ func EditUser(c *gin.Context) {
 		// 📌 Verifica se o username já existe em toda a base
 		var existingID int
 		err = config.DB.QueryRow("SELECT id FROM users WHERE username = ? AND id != ?", req.Username, userID).Scan(&existingID)
+		err = config.DB.QueryRow("SELECT id FROM users WHERE username = ? AND id != ?", req.Username, userID).Scan(&existingID)
 		if err == nil {
 			log.Println("❌ ERRO - Username já está em uso globalmente!")
 			c.JSON(400, gin.H{"erro": "Username já está em uso!"})
@@ -423,28 +441,18 @@ func EditUser(c *gin.Context) {
 		args = append(args, req.Bouquet)
 	}
 
-	// 📌 Processa os dados do aplicativo e salva como JSON no banco de dados
-	var appDataJSON string
-	if req.NomeDoAplicativo != "" || req.MAC != "" || req.DeviceID != "" || req.VencimentoAplicativo != "" {
-		log.Printf("DEBUG - Montando appData com MAC: %v (tipo: %T)", req.MAC, req.MAC)
-		appData := map[string]interface{}{
-			"NomeDoAplicativo":     req.NomeDoAplicativo,
-			"MAC":                  req.MAC,
-			"DeviceID":             req.DeviceID,
-			"VencimentoAplicativo": req.VencimentoAplicativo,
-		}
-
-		// Converte para JSON
-		appDataBytes, err := json.Marshal(appData)
+	// 📌 Processa os dados dos aplicativos e salva como JSON no banco de dados
+	var aplicativosJSON string
+	if req.Aplicativos != nil && len(req.Aplicativos) > 0 {
+		appDataBytes, err := json.Marshal(req.Aplicativos)
 		if err != nil {
-			log.Println("❌ Erro ao converter dados do aplicativo para JSON:", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao processar os dados do aplicativo"})
+			log.Println("❌ Erro ao converter array de aplicativos para JSON:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao processar os dados dos aplicativos"})
 			return
 		}
-
-		appDataJSON = string(appDataBytes)
+		aplicativosJSON = string(appDataBytes)
 		updateFields = append(updateFields, "aplicativo = ?")
-		args = append(args, appDataJSON)
+		args = append(args, aplicativosJSON)
 	}
 
 	if req.EnviarNotificacao != nil {
@@ -502,10 +510,10 @@ func EditUser(c *gin.Context) {
 
 	// Atribui o valor de aplicativo apenas se for válido
 	if aplicativoNull.Valid {
-		oldUser.Aplicativo = aplicativoNull.String
+		oldUser.Aplicativos = nil
+		_ = json.Unmarshal([]byte(aplicativoNull.String), &oldUser.Aplicativos)
 	} else {
-		// Define um valor vazio se for NULL
-		oldUser.Aplicativo = ""
+		oldUser.Aplicativos = nil
 	}
 
 	// Variáveis temporárias para log
@@ -549,7 +557,7 @@ func EditUser(c *gin.Context) {
 			"nome_para_aviso":    oldUser.NomeParaAviso,
 			"enviar_notificacao": oldUser.EnviarNotificacao,
 			"bouquet":            oldUser.Bouquet,
-			"aplicativo":         oldUser.Aplicativo,
+			"aplicativos":        oldUser.Aplicativos,
 		},
 		"valores_novos": bson.M{
 			"username":           req.Username,
@@ -559,14 +567,15 @@ func EditUser(c *gin.Context) {
 			"nome_para_aviso":    nomeParaAvisoLog,
 			"enviar_notificacao": enviarNotificacaoLog,
 			"bouquet":            req.Bouquet,
-			"aplicativo":         appDataJSON,
+			"aplicativos":        req.Aplicativos,
 		},
 		"timestamp": time.Now(),
 	})
 
 	// 📌 Retorna resposta
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Usuário atualizado com sucesso!",
+		"success":     true,
+		"message":     "Usuário atualizado com sucesso!",
+		"aplicativos": req.Aplicativos,
 	})
 }

@@ -102,27 +102,32 @@ definitions:
     type: object
   models.EditUserRequest:
     properties:
-      aplicativo:
-        type: string
-      bouquet:
-        type: string
-      device_id:
-        type: string
-      enviar_notificacao:
-        type: boolean
-      mac:
-        type: string
-      nome_do_aplicativo:
-        type: string
-      nome_para_aviso:
-        type: string
-      numero_whats:
+      username:
         type: string
       password:
         type: string
       reseller_notes:
         type: string
-      username:
+      numero_whats:
+        type: string
+      nome_para_aviso:
+        type: string
+      enviar_notificacao:
+        type: boolean
+      bouquet:
+        type: string
+      aplicativos:
+        type: array
+        items:
+          $ref: '#/definitions/models.AplicativoInfo'
+    type: object
+  models.AplicativoInfo:
+    properties:
+      nome_do_aplicativo:
+        type: string
+      mac:
+        type: string
+      device_id:
         type: string
       vencimento_aplicativo:
         type: string
