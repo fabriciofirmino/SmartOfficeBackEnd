@@ -318,7 +318,9 @@ func ChangeDueDateHandler(c *gin.Context) {
 
 	var userMemberID int
 	var expDate sql.NullInt64
-	err := config.DB.QueryRow("SELECT member_id, exp_date FROM streamcreed_db.users WHERE id = ?", req.UserID).Scan(&userMemberID, &expDate)
+	var isTrial int
+	var enabled int
+	err := config.DB.QueryRow("SELECT member_id, exp_date, is_trial, enabled FROM streamcreed_db.users WHERE id = ?", req.UserID).Scan(&userMemberID, &expDate, &isTrial, &enabled)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusUnauthorized, gin.H{"erro": "Usuário não encontrado"})
@@ -330,6 +332,14 @@ func ChangeDueDateHandler(c *gin.Context) {
 	}
 	if userMemberID != tokenInfo.MemberID {
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Ação não permitida: você não é o responsável por esta conta"})
+		return
+	}
+	if isTrial == 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"erro": "Não é permitido alterar o vencimento de contas de teste (trial)."})
+		return
+	}
+	if enabled != 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"erro": "Não é permitido alterar o vencimento de contas bloqueadas/desativadas."})
 		return
 	}
 
