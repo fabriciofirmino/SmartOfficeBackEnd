@@ -80,7 +80,7 @@ func GetClientsTable(c *gin.Context) {
 
 	// 📌 Consulta base para buscar todos os usuários do membro
 	query := `SELECT id, username, password, exp_date, enabled, admin_enabled, max_connections, created_at, reseller_notes, is_trial, Aplicativo 
-			FROM users WHERE member_id = ?`
+			FROM users WHERE member_id = ? and deleted != '1'`
 	var args []interface{}
 	args = append(args, memberID)
 
