@@ -56,6 +56,8 @@ type ClientData struct {
 	Franquia          NullString `json:"franquia" swaggertype:"string" example:"Franquia ABC"`
 	FranquiaMemberID  NullInt64  `json:"franquia_member_id" swaggertype:"integer" example:"999"`
 	P2P               NullInt64  `json:"p2p" swaggertype:"integer" example:"0"`
+	// Adiciona o campo Aplicativo
+	Aplicativo NullString `json:"aplicativo" swaggertype:"string" example:"AppX"`
 }
 
 // swagger:model
@@ -119,10 +121,6 @@ func GetClientsByFilters(memberID int, filters map[string]interface{}) ([]Client
 	args = append(args, memberID)
 
 	// Aplicando filtros opcionais
-	if id, ok := filters["id"]; ok {
-		conditions = append(conditions, "id = ?")
-		args = append(args, id)
-	}
 	if username, ok := filters["username"]; ok {
 		conditions = append(conditions, "username = ?")
 		args = append(args, username)
@@ -167,10 +165,11 @@ func GetClientsByFilters(memberID int, filters map[string]interface{}) ([]Client
 		created_at, created_by, pair_id, is_mag, is_e2, force_server_id, is_isplock, isp_desc,
 		forced_country, is_stalker, bypass_ua, as_number, play_token, package_id, USR_MAC,
 		USR_DEVICE_KEY, notes2, root_enabled, NUMERO_WHATS, NOME_PARA_AVISO, EMAIL, ENVIAR_NOTIFICACAO,
-		SOBRENOME_AVISOS, deleted, date_deleted, app_id, trust_renew, franquia, franquia_member_id, p2p
+		SOBRENOME_AVISOS, deleted, date_deleted, app_id, trust_renew, franquia, franquia_member_id, p2p,
+		Aplicativo
 		FROM users
 		WHERE %s
-	`, strings.Join(conditions, " AND ")) // 📌 Correção aplicada aqui
+	`, strings.Join(conditions, " AND ")) // 📌 Corrigido: inclui coluna Aplicativo
 
 	log.Printf("Executando query: %s\n", query)
 	log.Printf("Com argumentos: %v\n", args)
@@ -195,6 +194,7 @@ func GetClientsByFilters(memberID int, filters map[string]interface{}) ([]Client
 			&client.RootEnabled, &client.NumeroWhats, &client.NomeParaAviso, &client.Email,
 			&client.EnviarNotificacao, &client.SobrenomeAvisos, &client.Deleted, &client.DateDeleted,
 			&client.AppID, &client.TrustRenew, &client.Franquia, &client.FranquiaMemberID, &client.P2P,
+			&client.Aplicativo, // Adiciona o campo Aplicativo ao Scan
 		); err != nil {
 			log.Printf("Erro ao escanear linha: %v\n", err)
 			return nil, err

@@ -53,6 +53,7 @@ type ClientResponse struct {
 	Deleted           int    `json:"deleted"`
 	DateDeleted       string `json:"date_deleted"`
 	AppID             string `json:"app_id"`
+	Aplicativo        string `json:"aplicativo"`
 	TrustRenew        int    `json:"trust_renew"`
 	Franquia          string `json:"franquia"`
 	FranquiaMemberID  int    `json:"franquia_member_id"`
@@ -174,6 +175,7 @@ func GetClients(c *gin.Context) {
 				Deleted:           NullIntToInt(client.Deleted),
 				DateDeleted:       NullStringToString(client.DateDeleted),
 				AppID:             NullStringToString(client.AppID),
+				Aplicativo:        NullStringToString(client.Aplicativo), // Agora pega do campo correto
 				TrustRenew:        NullIntToInt(client.TrustRenew),
 				Franquia:          NullStringToString(client.Franquia),
 				FranquiaMemberID:  NullIntToInt(client.FranquiaMemberID),
