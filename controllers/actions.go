@@ -364,7 +364,13 @@ func ChangeDueDateHandler(c *gin.Context) {
 		return
 	}
 
-	novoVenc := time.Date(exp.Year(), exp.Month(), req.NovaDataVencimento, exp.Hour(), exp.Minute(), exp.Second(), 0, exp.Location())
+	// Corrigido: altera apenas o dia, mantendo mês, ano e horário do exp_date original
+	novoVenc := time.Date(exp.Year(), exp.Month(), req.NovaDataVencimento, exp.Hour(), exp.Minute(), exp.Second(), exp.Nanosecond(), exp.Location())
+	if novoVenc.Before(exp) {
+		// Se a nova data ficou antes do exp_date original, ajusta para o próximo mês
+		novoVenc = time.Date(exp.Year(), exp.Month()+1, req.NovaDataVencimento, exp.Hour(), exp.Minute(), exp.Second(), exp.Nanosecond(), exp.Location())
+	}
+
 	_, err = config.DB.Exec("UPDATE streamcreed_db.users SET exp_date = ? WHERE id = ?", novoVenc.Unix(), req.UserID)
 	if err != nil {
 		log.Printf("❌ Erro ao atualizar exp_date: %v", err)
