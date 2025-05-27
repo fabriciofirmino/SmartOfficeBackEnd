@@ -26,20 +26,24 @@ func GetUserByUsername(username string) (*User, error) {
 	}
 
 	allowedUsersEnv := os.Getenv("ALLOWED_USERS")
+	//fmt.Printf("[DEBUG] ALLOWED_USERS env: '%s'\n", allowedUsersEnv)
+	//fmt.Printf("[DEBUG] Username recebido: '%s'\n", username)
 	if allowedUsersEnv != "" {
 		isAllowed := false
 		allowedUsersList := strings.Split(allowedUsersEnv, ",")
+		//fmt.Printf("[DEBUG] allowedUsersList: %#v\n", allowedUsersList)
 		for _, allowedUser := range allowedUsersList {
+			fmt.Printf("[DEBUG] Comparando '%s' com '%s'\n", strings.TrimSpace(allowedUser), username)
 			if strings.TrimSpace(allowedUser) == username {
 				isAllowed = true
 				break
 			}
 		}
 		if !isAllowed {
-			// Usuário não está na lista de permitidos, retorna erro similar a "não encontrado"
-			// para não vazar informação de que o usuário existe mas não está permitido.
+			fmt.Printf("[DEBUG] Usuário '%s' NÃO está em ALLOWED_USERS\n", username)
 			return nil, sql.ErrNoRows
 		}
+		fmt.Printf("[DEBUG] Usuário '%s' está em ALLOWED_USERS\n", username)
 	}
 
 	// Se chegou aqui, ou ALLOWED_USERS está vazio, ou o username está na lista.
