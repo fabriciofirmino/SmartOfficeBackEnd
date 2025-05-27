@@ -119,6 +119,10 @@ func GetClientsByFilters(memberID int, filters map[string]interface{}) ([]Client
 	args = append(args, memberID)
 
 	// Aplicando filtros opcionais
+	if id, ok := filters["id"]; ok {
+		conditions = append(conditions, "id = ?")
+		args = append(args, id)
+	}
 	if username, ok := filters["username"]; ok {
 		conditions = append(conditions, "username = ?")
 		args = append(args, username)

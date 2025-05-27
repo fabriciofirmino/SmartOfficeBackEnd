@@ -86,7 +86,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retorna todos os clientes associados ao usuário autenticado",
+                "description": "Retorna todos os clientes associados ao usuário autenticado. Permite filtrar por query string, login ou userID.",
                 "consumes": [
                     "application/json"
                 ],
@@ -99,12 +99,10 @@
                 "summary": "Lista clientes",
                 "responses": {
                     "200": {
-                        "description": "Lista de clientes",
+                        "description": "Lista de clientes, total_registros e token_expira_em",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.ClientData"
-                            }
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "401": {
@@ -197,6 +195,116 @@
                     },
                     "500": {
                         "description": "Erro interno ao buscar ou processar os dados",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/clients/login/{login}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna todos os clientes associados ao usuário autenticado. Permite filtrar por query string, login ou userID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Clientes"
+                ],
+                "summary": "Lista clientes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Login do cliente (username)",
+                        "name": "login",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de clientes, total_registros e token_expira_em",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Token inválido ou não fornecido",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno ao buscar clientes",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/clients/userid/{userid}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna todos os clientes associados ao usuário autenticado. Permite filtrar por query string, login ou userID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Clientes"
+                ],
+                "summary": "Lista clientes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID do cliente (userID)",
+                        "name": "userid",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista de clientes, total_registros e token_expira_em",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Token inválido ou não fornecido",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno ao buscar clientes",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1585,191 +1693,6 @@
                 },
                 "user_id": {
                     "type": "integer"
-                }
-            }
-        },
-        "models.ClientData": {
-            "type": "object",
-            "properties": {
-                "admin_enabled": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "admin_notes": {
-                    "type": "string",
-                    "example": "Notas administrativas"
-                },
-                "allowed_ips": {
-                    "type": "string",
-                    "example": "192.168.1.1, 10.0.0.1"
-                },
-                "allowed_ua": {
-                    "type": "string",
-                    "example": "Mozilla/5.0"
-                },
-                "app_id": {
-                    "type": "string",
-                    "example": "app-12345"
-                },
-                "as_number": {
-                    "type": "string",
-                    "example": "AS12345"
-                },
-                "bouquet": {
-                    "type": "string",
-                    "example": "Pacote Premium"
-                },
-                "bypass_ua": {
-                    "type": "string",
-                    "example": "CustomUserAgent"
-                },
-                "created_at": {
-                    "type": "string",
-                    "example": "2024-03-15T14:30:00Z"
-                },
-                "created_by": {
-                    "type": "string",
-                    "example": "admin"
-                },
-                "date_deleted": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
-                },
-                "deleted": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "email": {
-                    "type": "string",
-                    "example": "joao@example.com"
-                },
-                "enabled": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "enviar_notificacao": {
-                    "type": "string",
-                    "example": "true"
-                },
-                "exp_date": {
-                    "type": "string",
-                    "example": "2025-12-31T23:59:59Z"
-                },
-                "force_server_id": {
-                    "type": "integer",
-                    "example": 3
-                },
-                "forced_country": {
-                    "type": "string",
-                    "example": "BR"
-                },
-                "franquia": {
-                    "type": "string",
-                    "example": "Franquia ABC"
-                },
-                "franquia_member_id": {
-                    "type": "integer",
-                    "example": 999
-                },
-                "id": {
-                    "type": "integer",
-                    "example": 123
-                },
-                "is_e2": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "is_isplock": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "is_mag": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "is_restreamer": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "is_stalker": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "is_trial": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "isp_desc": {
-                    "type": "string",
-                    "example": "Provedor XYZ"
-                },
-                "max_connections": {
-                    "type": "integer",
-                    "example": 5
-                },
-                "member_id": {
-                    "type": "integer",
-                    "example": 456
-                },
-                "nome_para_aviso": {
-                    "type": "string",
-                    "example": "João Silva"
-                },
-                "notes2": {
-                    "type": "string",
-                    "example": "Notas adicionais"
-                },
-                "numero_whats": {
-                    "type": "string",
-                    "example": "+5511999999999"
-                },
-                "p2p": {
-                    "type": "integer",
-                    "example": 0
-                },
-                "package_id": {
-                    "type": "integer",
-                    "example": 11
-                },
-                "pair_id": {
-                    "type": "integer",
-                    "example": 789
-                },
-                "password": {
-                    "type": "string",
-                    "example": "hashed_password"
-                },
-                "play_token": {
-                    "type": "string",
-                    "example": "xyz123token"
-                },
-                "reseller_notes": {
-                    "type": "string",
-                    "example": "Notas do revendedor"
-                },
-                "root_enabled": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "sobrenome_avisos": {
-                    "type": "string",
-                    "example": "Silva"
-                },
-                "trust_renew": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "username": {
-                    "type": "string",
-                    "example": "john_doe"
-                },
-                "usr_device_key": {
-                    "type": "string",
-                    "example": "device-key-123"
-                },
-                "usr_mac": {
-                    "type": "string",
-                    "example": "00:1A:2B:3C:4D:5E"
                 }
             }
         },

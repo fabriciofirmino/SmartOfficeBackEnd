@@ -62,15 +62,19 @@ type ClientResponse struct {
 // GetClients retorna a lista de clientes de um membro autenticado.
 //
 // @Summary Lista clientes
-// @Description Retorna todos os clientes associados ao usuário autenticado
+// @Description Retorna todos os clientes associados ao usuário autenticado. Permite filtrar por query string, login ou userID.
 // @Tags Clientes
 // @Security BearerAuth
 // @Accept  json
 // @Produce  json
-// @Success 200 {object} []models.ClientData "Lista de clientes"
+// @Param login path string false "Login do cliente (username)"
+// @Param userid path string false "ID do cliente (userID)"
+// @Success 200 {object} map[string]interface{} "Lista de clientes, total_registros e token_expira_em"
 // @Failure 401 {object} map[string]string "Token inválido ou não fornecido"
 // @Failure 500 {object} map[string]string "Erro interno ao buscar clientes"
 // @Router /api/clients [get]
+// @Router /api/clients/login/{login} [get]
+// @Router /api/clients/userid/{userid} [get]
 func GetClients(c *gin.Context) {
 	// 📌 Recuperar token do header
 	tokenString := c.GetHeader("Authorization")
@@ -94,13 +98,22 @@ func GetClients(c *gin.Context) {
 	}
 	memberID := int(memberIDFloat)
 
-	// 📌 Capturar filtros opcionais da URL
-	filters := map[string]interface{}{}
-	queryParams := []string{"username", "numero_whats", "enviar_notificacao", "max_connections", "is_trial", "enabled", "admin_notes", "email", "exp_date"}
+	// 🔹 NOVO: Verificar se há parâmetro de rota :login ou :userid
+	loginParam := c.Param("login")
+	userIDParam := c.Param("userid")
 
-	for _, param := range queryParams {
-		if value := c.Query(param); value != "" {
-			filters[param] = value
+	filters := map[string]interface{}{}
+	if loginParam != "" {
+		filters["username"] = loginParam
+	} else if userIDParam != "" {
+		filters["id"] = userIDParam
+	} else {
+		// 📌 Capturar filtros opcionais da URL (query string)
+		queryParams := []string{"username", "numero_whats", "enviar_notificacao", "max_connections", "is_trial", "enabled", "admin_notes", "email", "exp_date"}
+		for _, param := range queryParams {
+			if value := c.Query(param); value != "" {
+				filters[param] = value
+			}
 		}
 	}
 

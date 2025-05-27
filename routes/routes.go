@@ -49,5 +49,9 @@ func SetupRoutes(r *gin.Engine) {
 		protected.DELETE("/users/:user_id/session", controllers.KickUserSessionHandler)
 		protected.PATCH("/users/:user_id/restore", controllers.RestoreUserHandler)
 		protected.DELETE("/users/:user_id", controllers.SoftDeleteUserHandler)
+
+		// Rotas de clientes com filtro por login e userID
+		protected.GET("/clients/login/:login", controllers.GetClients)
+		protected.GET("/clients/userid/:userid", controllers.GetClients)
 	}
 }
