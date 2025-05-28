@@ -442,7 +442,7 @@ func EditUser(c *gin.Context) {
 
 	// 📌 Processa os dados dos aplicativos e salva como JSON no banco de dados
 	var aplicativosJSON string
-	if req.Aplicativos != nil && len(req.Aplicativos) > 0 {
+	if len(req.Aplicativos) > 0 {
 		appDataBytes, err := json.Marshal(req.Aplicativos)
 		if err != nil {
 			log.Println("❌ Erro ao converter array de aplicativos para JSON:", err)
