@@ -395,7 +395,6 @@ func EditUser(c *gin.Context) {
 		// 📌 Verifica se o username já existe em toda a base
 		var existingID int
 		err = config.DB.QueryRow("SELECT id FROM users WHERE username = ? AND id != ?", req.Username, userID).Scan(&existingID)
-		err = config.DB.QueryRow("SELECT id FROM users WHERE username = ? AND id != ?", req.Username, userID).Scan(&existingID)
 		if err == nil {
 			log.Println("❌ ERRO - Username já está em uso globalmente!")
 			c.JSON(400, gin.H{"erro": "Username já está em uso!"})

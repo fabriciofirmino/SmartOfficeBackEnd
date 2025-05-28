@@ -177,8 +177,14 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "Filtrar clientes por vencimento (7, 15, 30, custom até 90 ou '0' para vencidos)",
+                        "description": "Filtrar clientes por vencimento (7, 15, 30, custom até 90 ou \\'0\\' para vencidos)",
                         "name": "expiration_filter",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filtrar por ID do membro da franquia",
+                        "name": "franquia_member_id",
                         "in": "query"
                     }
                 ],
@@ -359,7 +365,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Erro na requisição",
+                        "description": "Erro na requisição ou usuário já existe (com credenciais fornecidas)",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -369,6 +375,24 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Token inválido",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Muitas tentativas de geração aleatória falharam",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Erro interno do servidor",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1601,10 +1625,29 @@ const docTemplate = `{
         "controllers.DashboardResponse": {
             "type": "object",
             "properties": {
+                "canaisOff": {
+                    "type": "integer"
+                },
+                "lastUpdated": {
+                    "description": "Ou sql.NullString se puder ser nulo",
+                    "type": "string"
+                },
+                "totalCanais": {
+                    "type": "integer"
+                },
                 "totalClientes": {
                     "type": "integer"
                 },
                 "totalClientesRevenda": {
+                    "type": "integer"
+                },
+                "totalEpisodiosSeries": {
+                    "type": "integer"
+                },
+                "totalFilmes": {
+                    "type": "integer"
+                },
+                "totalSeries": {
                     "type": "integer"
                 },
                 "totalTestesAtivos": {
@@ -1672,6 +1715,10 @@ const docTemplate = `{
         "controllers.TestRequest": {
             "type": "object",
             "properties": {
+                "franquia_member_id": {
+                    "description": "Novo campo opcional",
+                    "type": "integer"
+                },
                 "nome_para_aviso": {
                     "type": "string"
                 },
@@ -1699,6 +1746,23 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.AplicativoInfo": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "type": "string"
+                },
+                "mac": {
+                    "type": "string"
+                },
+                "nome_do_aplicativo": {
+                    "type": "string"
+                },
+                "vencimento_aplicativo": {
+                    "type": "string"
                 }
             }
         },
@@ -1740,23 +1804,17 @@ const docTemplate = `{
         "models.EditUserRequest": {
             "type": "object",
             "properties": {
-                "aplicativo": {
-                    "type": "string"
+                "aplicativos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.AplicativoInfo"
+                    }
                 },
                 "bouquet": {
                     "type": "string"
                 },
-                "device_id": {
-                    "type": "string"
-                },
                 "enviar_notificacao": {
                     "type": "boolean"
-                },
-                "mac": {
-                    "type": "string"
-                },
-                "nome_do_aplicativo": {
-                    "type": "string"
                 },
                 "nome_para_aviso": {
                     "type": "string"
@@ -1771,9 +1829,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "username": {
-                    "type": "string"
-                },
-                "vencimento_aplicativo": {
                     "type": "string"
                 }
             }

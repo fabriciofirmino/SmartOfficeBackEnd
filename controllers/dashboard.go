@@ -10,10 +10,16 @@ import (
 
 // Estrutura de resposta do dashboard
 type DashboardResponse struct {
-	TotalClientesRevenda int `json:"totalClientesRevenda"`
-	TotalTestesAtivos    int `json:"totalTestesAtivos"`
-	TotalVencido         int `json:"totalVencido"`
-	TotalClientes        int `json:"totalClientes"`
+	TotalClientesRevenda int    `json:"totalClientesRevenda"`
+	TotalTestesAtivos    int    `json:"totalTestesAtivos"`
+	TotalVencido         int    `json:"totalVencido"`
+	TotalClientes        int    `json:"totalClientes"`
+	TotalFilmes          int    `json:"totalFilmes"`
+	TotalEpisodiosSeries int    `json:"totalEpisodiosSeries"`
+	TotalCanais          int    `json:"totalCanais"`
+	TotalSeries          int    `json:"totalSeries"`
+	CanaisOff            int    `json:"canaisOff"`
+	LastUpdated          string `json:"lastUpdated"` // Ou sql.NullString se puder ser nulo
 }
 
 // DashboardHandler retorna métricas do dashboard com base no member_id.
@@ -24,6 +30,21 @@ type DashboardResponse struct {
 // @Security BearerAuth
 // @Produce json
 // @Success 200 {object} DashboardResponse "Dados do dashboard"
+// @example response.200.success
+//
+//	{
+//	  "totalClientesRevenda": 150,
+//	  "totalTestesAtivos": 25,
+//	  "totalVencido": 10,
+//	  "totalClientes": 200,
+//	  "totalFilmes": 5000,
+//	  "totalEpisodiosSeries": 15000,
+//	  "totalCanais": 300,
+//	  "totalSeries": 200,
+//	  "canaisOff": 5,
+//	  "lastUpdated": "2024-05-27T10:30:00Z"
+//	}
+//
 // @Failure 401 {object} map[string]string "Token inválido"
 // @Failure 500 {object} map[string]string "Erro interno"
 // @Router /api/dashboard [get]

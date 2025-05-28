@@ -11,9 +11,22 @@ definitions:
     type: object
   controllers.DashboardResponse:
     properties:
+      canaisOff:
+        type: integer
+      lastUpdated:
+        description: Ou sql.NullString se puder ser nulo
+        type: string
+      totalCanais:
+        type: integer
       totalClientes:
         type: integer
       totalClientesRevenda:
+        type: integer
+      totalEpisodiosSeries:
+        type: integer
+      totalFilmes:
+        type: integer
+      totalSeries:
         type: integer
       totalTestesAtivos:
         type: integer
@@ -57,6 +70,9 @@ definitions:
     type: object
   controllers.TestRequest:
     properties:
+      franquia_member_id:
+        description: Novo campo opcional
+        type: integer
       nome_para_aviso:
         type: string
       numero_whats:
@@ -76,6 +92,17 @@ definitions:
         type: string
       user_id:
         type: integer
+    type: object
+  models.AplicativoInfo:
+    properties:
+      device_id:
+        type: string
+      mac:
+        type: string
+      nome_do_aplicativo:
+        type: string
+      vencimento_aplicativo:
+        type: string
     type: object
   models.DeletedUser:
     properties:
@@ -102,34 +129,23 @@ definitions:
     type: object
   models.EditUserRequest:
     properties:
-      username:
+      aplicativos:
+        items:
+          $ref: '#/definitions/models.AplicativoInfo'
+        type: array
+      bouquet:
+        type: string
+      enviar_notificacao:
+        type: boolean
+      nome_para_aviso:
+        type: string
+      numero_whats:
         type: string
       password:
         type: string
       reseller_notes:
         type: string
-      numero_whats:
-        type: string
-      nome_para_aviso:
-        type: string
-      enviar_notificacao:
-        type: boolean
-      bouquet:
-        type: string
-      aplicativos:
-        type: array
-        items:
-          $ref: '#/definitions/models.AplicativoInfo'
-    type: object
-  models.AplicativoInfo:
-    properties:
-      nome_do_aplicativo:
-        type: string
-      mac:
-        type: string
-      device_id:
-        type: string
-      vencimento_aplicativo:
+      username:
         type: string
     type: object
   models.ScreenRequest:
@@ -263,9 +279,13 @@ paths:
         name: online
         type: boolean
       - description: Filtrar clientes por vencimento (7, 15, 30, custom até 90 ou
-          '0' para vencidos)
+          \'0\' para vencidos)
         in: query
         name: expiration_filter
+        type: integer
+      - description: Filtrar por ID do membro da franquia
+        in: query
+        name: franquia_member_id
         type: integer
       produces:
       - application/json
@@ -385,13 +405,25 @@ paths:
             additionalProperties: true
             type: object
         "400":
-          description: Erro na requisição
+          description: Erro na requisição ou usuário já existe (com credenciais fornecidas)
           schema:
             additionalProperties:
               type: string
             type: object
         "401":
           description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "429":
+          description: Muitas tentativas de geração aleatória falharam
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno do servidor
           schema:
             additionalProperties:
               type: string
