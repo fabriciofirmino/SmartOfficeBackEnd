@@ -180,6 +180,12 @@
                         "description": "Filtrar por ID do membro da franquia",
                         "name": "franquia_member_id",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por status de trial (0 para não trial, 1 para trial)",
+                        "name": "is_trial",
+                        "in": "query"
                     }
                 ],
                 "responses": {

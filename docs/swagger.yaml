@@ -287,6 +287,10 @@ paths:
         in: query
         name: franquia_member_id
         type: integer
+      - description: Filtrar por status de trial (0 para não trial, 1 para trial)
+        in: query
+        name: is_trial
+        type: string
       produces:
       - application/json
       responses:
