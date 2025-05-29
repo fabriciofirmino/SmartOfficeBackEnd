@@ -10,12 +10,16 @@ type AplicativoInfo struct {
 
 // EditUserRequest atualizado para aceitar array de aplicativos
 type EditUserRequest struct {
-	Username          string           `json:"username"`
-	Password          string           `json:"password"`
-	ResellerNotes     string           `json:"reseller_notes"`
-	NumeroWhats       *string          `json:"numero_whats"`
-	NomeParaAviso     *string          `json:"nome_para_aviso"`
-	EnviarNotificacao *bool            `json:"enviar_notificacao"`
-	Bouquet           string           `json:"bouquet"`
-	Aplicativos       []AplicativoInfo `json:"aplicativos"`
+	Username          string           `json:"username,omitempty"`
+	Password          string           `json:"password,omitempty"`
+	ResellerNotes     string           `json:"reseller_notes,omitempty"`
+	NumeroWhats       *string          `json:"numero_whats,omitempty"`
+	NomeParaAviso     *string          `json:"nome_para_aviso,omitempty"`
+	EnviarNotificacao *bool            `json:"enviar_notificacao,omitempty"`
+	Bouquet           string           `json:"bouquet,omitempty"`
+	Aplicativos       []AplicativoInfo `json:"aplicativos,omitempty"`
+	Notificacao_conta *bool            `json:"Notificacao_conta,omitempty"`
+	Notificacao_vods  *bool            `json:"Notificacao_vods,omitempty"`
+	Notificacao_jogos *bool            `json:"Notificacao_jogos,omitempty"`
+	FranquiaMemberID  *int             `json:"franquia_member_id,omitempty"`
 }

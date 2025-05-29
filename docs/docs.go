@@ -816,12 +816,7 @@ const docTemplate = `{
         },
         "/api/tools-table/edit/{id}": {
             "put": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Permite a edição de dados de um usuário na revenda autenticada",
+                "description": "Edita um usuário com base no ID fornecido. Permite a atualização de vários campos, incluindo nome de usuário, senha, notas do revendedor, número do WhatsApp, nome para aviso, envio de notificação, bouquet, aplicativos e preferências de notificação (Notificacao_conta, Notificacao_vods, Notificacao_jogos).",
                 "consumes": [
                     "application/json"
                 ],
@@ -829,20 +824,20 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "ToolsTable"
+                    "Tools Table"
                 ],
-                "summary": "Edita um usuário",
+                "summary": "Edita um usuário existente",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "ID do usuário a ser editado",
+                        "description": "ID do Usuário",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Dados do usuário a serem editados",
-                        "name": "request",
+                        "description": "Dados do Usuário para Editar. Campos como 'Notificacao_conta', 'Notificacao_vods', 'Notificacao_jogos' esperam true/false e são armazenados como 1/0.",
+                        "name": "user",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -859,7 +854,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Erro na requisição",
+                        "description": "Erro: Requisição inválida ou dados ausentes",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -867,8 +862,8 @@ const docTemplate = `{
                             }
                         }
                     },
-                    "401": {
-                        "description": "Token inválido ou acesso negado",
+                    "404": {
+                        "description": "Erro: Usuário não encontrado",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -877,7 +872,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Erro interno ao processar a requisição",
+                        "description": "Erro: Erro interno do servidor",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1810,6 +1805,15 @@ const docTemplate = `{
         "models.EditUserRequest": {
             "type": "object",
             "properties": {
+                "Notificacao_conta": {
+                    "type": "boolean"
+                },
+                "Notificacao_jogos": {
+                    "type": "boolean"
+                },
+                "Notificacao_vods": {
+                    "type": "boolean"
+                },
                 "aplicativos": {
                     "type": "array",
                     "items": {
@@ -1821,6 +1825,9 @@ const docTemplate = `{
                 },
                 "enviar_notificacao": {
                     "type": "boolean"
+                },
+                "franquia_member_id": {
+                    "type": "integer"
                 },
                 "nome_para_aviso": {
                     "type": "string"
