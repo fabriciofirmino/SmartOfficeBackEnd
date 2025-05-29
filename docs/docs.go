@@ -816,6 +816,11 @@ const docTemplate = `{
         },
         "/api/tools-table/edit/{id}": {
             "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Edita um usuário com base no ID fornecido. Permite a atualização de vários campos, incluindo nome de usuário, senha, notas do revendedor, número do WhatsApp, nome para aviso, envio de notificação, bouquet, aplicativos e preferências de notificação (Notificacao_conta, Notificacao_vods, Notificacao_jogos).",
                 "consumes": [
                     "application/json"
@@ -1806,43 +1811,60 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "Notificacao_conta": {
+                    "description": "Preferência de notificação para conta",
                     "type": "boolean"
                 },
                 "Notificacao_jogos": {
+                    "description": "Preferência de notificação para jogos",
                     "type": "boolean"
                 },
                 "Notificacao_vods": {
+                    "description": "Preferência de notificação para VODs",
                     "type": "boolean"
                 },
+                "Valor_plano": {
+                    "description": "Novo campo para o valor do plano",
+                    "type": "number"
+                },
                 "aplicativos": {
+                    "description": "Slice de AplicativoInfo",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.AplicativoInfo"
                     }
                 },
                 "bouquet": {
+                    "description": "String JSON representando um array de IDs",
                     "type": "string"
                 },
                 "enviar_notificacao": {
+                    "description": "Ponteiro para bool",
                     "type": "boolean"
                 },
                 "franquia_member_id": {
+                    "description": "ID da franquia (opcional)",
                     "type": "integer"
                 },
                 "nome_para_aviso": {
+                    "description": "Ponteiro para string",
                     "type": "string"
                 },
                 "numero_whats": {
+                    "description": "Ponteiro para string para aceitar null ou string vazia",
                     "type": "string"
                 },
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 15,
+                    "minLength": 4
                 },
                 "reseller_notes": {
                     "type": "string"
                 },
                 "username": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 15,
+                    "minLength": 4
                 }
             }
         },

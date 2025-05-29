@@ -2,9 +2,7 @@ package routes
 
 import (
 	"apiBackEnd/controllers"
-	_ "apiBackEnd/docs"     // Importação para Swagger funcionar
-	"apiBackEnd/middleware" // Adicionar import para o novo middleware
-	"os"                    // Adicionar import para os.Getenv
+	_ "apiBackEnd/docs" // Importação para Swagger funcionar
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -13,21 +11,8 @@ import (
 
 // SetupRoutes configura todas as rotas da API
 func SetupRoutes(r *gin.Engine) {
-	// Rota do Swagger com autenticação básica
-	swaggerUser := os.Getenv("SWAGGER_USER")
-	swaggerPass := os.Getenv("SWAGGER_PASS")
-
-	// Se SWAGGER_USER e SWAGGER_PASS estiverem definidos, protege a rota do Swagger
-	if swaggerUser != "" && swaggerPass != "" {
-		swaggerGroup := r.Group("/swagger")
-		swaggerGroup.Use(middleware.GinBasicAuth()) // Middleware de autenticação básica
-		{
-			swaggerGroup.GET("/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-		}
-	} else {
-		// Caso contrário, rota do Swagger sem autenticação (comportamento anterior)
-		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	}
+	// Rota do Swagger
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Rotas de autenticação e informações iniciais
 	r.POST("/login", controllers.Login)

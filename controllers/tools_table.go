@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -36,6 +37,7 @@ func validateAndSanitizeField(fieldName, value string, minLen, maxLen int, c *gi
 // @Summary Edita um usuário existente
 // @Description Edita um usuário com base no ID fornecido. Permite a atualização de vários campos, incluindo nome de usuário, senha, notas do revendedor, número do WhatsApp, nome para aviso, envio de notificação, bouquet, aplicativos e preferências de notificação (Notificacao_conta, Notificacao_vods, Notificacao_jogos).
 // @Tags Tools Table
+// @Security BearerAuth
 // @Accept  json
 // @Produce  json
 // @Param id path int true "ID do Usuário"
@@ -62,7 +64,8 @@ func validateAndSanitizeField(fieldName, value string, minLen, maxLen int, c *gi
 //	  "Notificacao_conta": true,
 //	  "Notificacao_vods": false,
 //	  "Notificacao_jogos": true,
-//	  "franquia_member_id": 25
+//	  "franquia_member_id": 25,
+//	  "Valor_plano": 99.99
 //	}
 //
 // @Example request.body.apenas_notificacoes
@@ -112,50 +115,43 @@ func EditUser(c *gin.Context) {
 
 	var querySetters []string
 	var queryArgs []interface{}
-	argCounter := 1
+	// argCounter não é mais necessário para formatar os placeholders na query string
 
 	if req.Username != "" {
 		if errMsg := validateAndSanitizeField("username", req.Username, 4, 15, c); errMsg != "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 			return
 		}
-		querySetters = append(querySetters, fmt.Sprintf("username = $%d", argCounter))
+		querySetters = append(querySetters, "username = ?")
 		queryArgs = append(queryArgs, req.Username)
-		argCounter++
 	}
 	if req.Password != "" {
 		if errMsg := validateAndSanitizeField("password", req.Password, 4, 15, c); errMsg != "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
 			return
 		}
-		querySetters = append(querySetters, fmt.Sprintf("password = $%d", argCounter))
+		querySetters = append(querySetters, "password = ?")
 		queryArgs = append(queryArgs, req.Password) // Idealmente, a senha seria hasheada aqui
-		argCounter++
 	}
 	if req.ResellerNotes != "" {
-		querySetters = append(querySetters, fmt.Sprintf("reseller_notes = $%d", argCounter))
+		querySetters = append(querySetters, "reseller_notes = ?")
 		queryArgs = append(queryArgs, req.ResellerNotes)
-		argCounter++
 	}
 	if req.NumeroWhats != nil {
-		querySetters = append(querySetters, fmt.Sprintf("numero_whats = $%d", argCounter))
+		querySetters = append(querySetters, "numero_whats = ?")
 		queryArgs = append(queryArgs, *req.NumeroWhats)
-		argCounter++
 	}
 	if req.NomeParaAviso != nil {
-		querySetters = append(querySetters, fmt.Sprintf("nome_para_aviso = $%d", argCounter))
+		querySetters = append(querySetters, "nome_para_aviso = ?")
 		queryArgs = append(queryArgs, *req.NomeParaAviso)
-		argCounter++
 	}
 	if req.EnviarNotificacao != nil {
-		querySetters = append(querySetters, fmt.Sprintf("enviar_notificacao = $%d", argCounter))
+		querySetters = append(querySetters, "enviar_notificacao = ?")
 		queryArgs = append(queryArgs, *req.EnviarNotificacao)
-		argCounter++
 	}
 	if req.Bouquet != "" {
-		querySetters = append(querySetters, fmt.Sprintf("bouquet = $%d", argCounter))
+		querySetters = append(querySetters, "bouquet = ?")
 		queryArgs = append(queryArgs, req.Bouquet)
-		argCounter++
 	}
 	if len(req.Aplicativos) > 0 {
 		aplicativosJSON, err := json.Marshal(req.Aplicativos)
@@ -164,29 +160,28 @@ func EditUser(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar aplicativos"})
 			return
 		}
-		querySetters = append(querySetters, fmt.Sprintf("aplicativo = $%d", argCounter))
+		querySetters = append(querySetters, "aplicativo = ?")
 		queryArgs = append(queryArgs, string(aplicativosJSON))
-		argCounter++
 	}
 	if req.Notificacao_conta != nil {
-		querySetters = append(querySetters, fmt.Sprintf("Notificacao_conta = $%d", argCounter))
+		querySetters = append(querySetters, "Notificacao_conta = ?")
 		queryArgs = append(queryArgs, *req.Notificacao_conta)
-		argCounter++
 	}
 	if req.Notificacao_vods != nil {
-		querySetters = append(querySetters, fmt.Sprintf("Notificacao_vods = $%d", argCounter))
+		querySetters = append(querySetters, "Notificacao_vods = ?")
 		queryArgs = append(queryArgs, *req.Notificacao_vods)
-		argCounter++
 	}
 	if req.Notificacao_jogos != nil {
-		querySetters = append(querySetters, fmt.Sprintf("Notificacao_jogos = $%d", argCounter))
+		querySetters = append(querySetters, "Notificacao_jogos = ?")
 		queryArgs = append(queryArgs, *req.Notificacao_jogos)
-		argCounter++
 	}
 	if req.FranquiaMemberID != nil {
-		querySetters = append(querySetters, fmt.Sprintf("franquia_member_id = $%d", argCounter))
+		querySetters = append(querySetters, "franquia_member_id = ?")
 		queryArgs = append(queryArgs, *req.FranquiaMemberID)
-		argCounter++
+	}
+	if req.Valor_plano != nil {
+		querySetters = append(querySetters, "Valor_plano = ?")
+		queryArgs = append(queryArgs, *req.Valor_plano)
 	}
 
 	if len(querySetters) == 0 {
@@ -194,18 +189,31 @@ func EditUser(c *gin.Context) {
 		return
 	}
 
-	query := fmt.Sprintf("UPDATE users SET %s WHERE id = $%d RETURNING username, password, reseller_notes, numero_whats, nome_para_aviso, enviar_notificacao, bouquet, aplicativo, Notificacao_conta, Notificacao_vods, Notificacao_jogos, franquia_member_id", strings.Join(querySetters, ", "), argCounter)
-	queryArgs = append(queryArgs, userID)
+	query := fmt.Sprintf("UPDATE users SET %s WHERE id = ?", strings.Join(querySetters, ", "))
+	finalQueryArgs := make([]interface{}, len(queryArgs))
+	copy(finalQueryArgs, queryArgs)
+	finalQueryArgs = append(finalQueryArgs, userID)
 
-	log.Printf("Executando query: %s com args: %v", query, queryArgs)
+	// A lógica de loggableQuery não é mais necessária, pois 'query' já usa '?'
+	log.Printf("Executando query: %s com args: %v", query, finalQueryArgs)
 
+	_, err = tx.Exec(query, finalQueryArgs...)
+	if err != nil {
+		log.Printf("Erro ao executar a query de atualização para o usuário %d: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao editar usuário"})
+		return
+	}
+
+	// Buscar os dados atualizados após o UPDATE, pois RETURNING não é suportado
+	selectQuery := `SELECT username, password, reseller_notes, numero_whats, nome_para_aviso, enviar_notificacao, bouquet, aplicativo, Notificacao_conta, Notificacao_vods, Notificacao_jogos, franquia_member_id, Valor_plano FROM users WHERE id = ?`
 	var updatedUsername, updatedPassword, updatedResellerNotes, updatedBouquet sql.NullString
 	var updatedNumeroWhats, updatedNomeParaAviso sql.NullString
 	var updatedEnviarNotificacao, updatedNotificacaoConta, updatedNotificacaoVods, updatedNotificacaoJogos sql.NullBool
 	var updatedAplicativosJSON sql.NullString
 	var updatedFranquiaMemberID sql.NullInt64
+	var updatedValorPlano sql.NullFloat64 // Novo campo
 
-	err = tx.QueryRow(query, queryArgs...).Scan(
+	err = tx.QueryRow(selectQuery, userID).Scan(
 		&updatedUsername,
 		&updatedPassword,
 		&updatedResellerNotes,
@@ -218,16 +226,17 @@ func EditUser(c *gin.Context) {
 		&updatedNotificacaoVods,
 		&updatedNotificacaoJogos,
 		&updatedFranquiaMemberID,
+		&updatedValorPlano, // Novo campo
 	)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Printf("Usuário com ID %d não encontrado para atualização.", userID)
-			c.JSON(http.StatusNotFound, gin.H{"error": "Usuário não encontrado"})
+			log.Printf("Usuário com ID %d não encontrado após atualização (isso não deveria acontecer).", userID)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Usuário não encontrado após atualização"})
 			return
 		}
-		log.Printf("Erro ao executar a query de atualização para o usuário %d: %v", userID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao editar usuário"})
+		log.Printf("Erro ao buscar dados atualizados do usuário %d: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar dados atualizados do usuário"})
 		return
 	}
 
@@ -244,6 +253,7 @@ func EditUser(c *gin.Context) {
 		"Notificacao_vods":   updatedNotificacaoVods.Bool,
 		"Notificacao_jogos":  updatedNotificacaoJogos.Bool,
 		"franquia_member_id": updatedFranquiaMemberID.Int64,
+		"Valor_plano":        updatedValorPlano.Float64, // Novo campo
 	}
 	if updatedAplicativosJSON.Valid {
 		var apps []models.AplicativoInfo
@@ -257,8 +267,17 @@ func EditUser(c *gin.Context) {
 		newData["aplicativos"] = nil
 	}
 
-	if auditErr := saveAuditLog(tx, userID, "edit_user", oldData, newData); auditErr != nil {
-		log.Printf("Erro ao salvar log de auditoria para edição do usuário %d: %v", userID, auditErr)
+	// Comentando a chamada para saveAuditLog que usa SQL Tx
+	/*
+		if auditErr := saveAuditLog(tx, userID, "edit_user", oldData, newData); auditErr != nil {
+			log.Printf("Erro ao salvar log de auditoria para edição do usuário %d: %v", userID, auditErr)
+		}
+	*/
+
+	// Nova chamada para saveAuditLog com MongoDB (a ser implementada/descomentada)
+	if err := saveAuditLogToMongo(c, userID, "edit_user", oldData, newData); err != nil {
+		log.Printf("Erro ao salvar log de auditoria no MongoDB para edição do usuário %d: %v", userID, err)
+		// Decidir se este erro deve impedir o commit da transação principal ou apenas ser logado
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -295,13 +314,15 @@ func EditUser(c *gin.Context) {
 }
 
 func getUserDataForAudit(userID int) (map[string]interface{}, error) {
-	query := `SELECT username, password, reseller_notes, numero_whats, nome_para_aviso, enviar_notificacao, bouquet, aplicativo, Notificacao_conta, Notificacao_vods, Notificacao_jogos, franquia_member_id FROM users WHERE id = $1`
-	row := config.DB.QueryRow(query, userID) // Alterado de db.DB para config.DB
+	// Altera o placeholder de $1 para ?
+	query := `SELECT username, password, reseller_notes, numero_whats, nome_para_aviso, enviar_notificacao, bouquet, aplicativo, Notificacao_conta, Notificacao_vods, Notificacao_jogos, franquia_member_id, Valor_plano FROM users WHERE id = ?`
+	row := config.DB.QueryRow(query, userID)
 
 	var username, password, resellerNotes, bouquet, numeroWhats, nomeParaAviso sql.NullString
 	var enviarNotificacao, notificacaoConta, notificacaoVods, notificacaoJogos sql.NullBool
 	var aplicativosJSON sql.NullString
 	var franquiaMemberID sql.NullInt64
+	var valorPlano sql.NullFloat64 // Novo campo
 
 	err := row.Scan(
 		&username,
@@ -316,6 +337,7 @@ func getUserDataForAudit(userID int) (map[string]interface{}, error) {
 		&notificacaoVods,
 		&notificacaoJogos,
 		&franquiaMemberID,
+		&valorPlano, // Novo campo
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -336,6 +358,7 @@ func getUserDataForAudit(userID int) (map[string]interface{}, error) {
 		"Notificacao_vods":   notificacaoVods.Bool,
 		"Notificacao_jogos":  notificacaoJogos.Bool,
 		"franquia_member_id": franquiaMemberID.Int64,
+		"Valor_plano":        valorPlano.Float64, // Novo campo
 	}
 
 	if aplicativosJSON.Valid && aplicativosJSON.String != "" {
@@ -353,7 +376,9 @@ func getUserDataForAudit(userID int) (map[string]interface{}, error) {
 	return data, nil
 }
 
-// saveAuditLog registra uma ação no log de auditoria dentro de uma transação.
+// saveAuditLog registra uma ação no log de auditoria dentro de uma transação SQL.
+// ESTA FUNÇÃO SERÁ COMENTADA E SUBSTITUÍDA POR UMA VERSÃO MONGO.
+/*
 func saveAuditLog(tx *sql.Tx, userID int, action string, oldData, newData map[string]interface{}) error {
 	oldDataJSON, err := json.Marshal(oldData)
 	if err != nil {
@@ -366,10 +391,43 @@ func saveAuditLog(tx *sql.Tx, userID int, action string, oldData, newData map[st
 
 	changedByUserID := sql.NullInt64{Valid: false} // TODO: Considerar popular este campo se o autor da mudança for conhecido
 
-	query := `INSERT INTO audit_log (user_id, action, old_value, new_value, changed_at, changed_by_user_id) VALUES ($1, $2, $3, $4, $5, $6)`
+	query := `INSERT INTO audit_log (user_id, action, old_value, new_value, changed_at, changed_by_user_id) VALUES (?, ?, ?, ?, ?, ?)`
 	_, err = tx.Exec(query, userID, action, string(oldDataJSON), string(newDataJSON), time.Now(), changedByUserID)
 	if err != nil {
 		return fmt.Errorf("erro ao inserir log de auditoria: %w", err)
+	}
+	return nil
+}
+*/
+
+// saveAuditLogToMongo registra uma ação no log de auditoria usando MongoDB.
+func saveAuditLogToMongo(c *gin.Context, targetUserID int, action string, oldData, newData map[string]interface{}) error {
+	adminID := 0 // Valor padrão se não encontrar no contexto
+	if memberIDVal, exists := c.Get("member_id"); exists {
+		if id, ok := memberIDVal.(float64); ok { // JWT armazena números como float64
+			adminID = int(id)
+		} else if idInt, ok := memberIDVal.(int); ok { // Caso já seja int
+			adminID = idInt
+		}
+	}
+
+	details := map[string]interface{}{
+		"old_value": oldData,
+		"new_value": newData,
+	}
+
+	logEntry := models.AuditLogEntry{
+		Action:    action,
+		UserID:    targetUserID,
+		AdminID:   adminID, // ID do admin que realizou a ação
+		Timestamp: time.Now(),
+		Details:   details,
+	}
+
+	collection := config.MongoDB.Database("streamcreed_db").Collection("audit_logs")
+	_, err := collection.InsertOne(context.TODO(), logEntry) // Usar context.TODO() por simplicidade, idealmente usar o context do request
+	if err != nil {
+		return fmt.Errorf("erro ao inserir log de auditoria no MongoDB: %w", err)
 	}
 	return nil
 }
@@ -405,7 +463,7 @@ func AddScreen(c *gin.Context) {
 
 	// 📌 Validar se o usuário pertence ao `member_id` autenticado
 	var userMemberID int
-	err = config.DB.QueryRow("SELECT member_id FROM users WHERE id = $1", req.UserID).Scan(&userMemberID) // Alterado para config.DB e placeholder $1
+	err = config.DB.QueryRow("SELECT member_id FROM users WHERE id = ?", req.UserID).Scan(&userMemberID) // Alterado para config.DB e placeholder ?
 	if err != nil {
 		log.Printf("❌ ERRO ao buscar usuário %d: %v", req.UserID, err)
 		c.JSON(http.StatusUnauthorized, gin.H{"erro": "Usuário não encontrado"}) // Alterado para StatusUnauthorized ou StatusNotFound
@@ -421,7 +479,7 @@ func AddScreen(c *gin.Context) {
 
 	// 📌 Obtém o número atual de telas
 	var totalTelas int
-	err = config.DB.QueryRow("SELECT max_connections FROM users WHERE id = $1", req.UserID).Scan(&totalTelas) // Alterado para config.DB e placeholder $1
+	err = config.DB.QueryRow("SELECT max_connections FROM users WHERE id = ?", req.UserID).Scan(&totalTelas) // Alterado para config.DB e placeholder ?
 	if err != nil {
 		log.Printf("❌ ERRO ao buscar total de telas: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar total de telas"})
@@ -435,7 +493,7 @@ func AddScreen(c *gin.Context) {
 
 	// 📌 Obtém data de vencimento
 	var expDate int64
-	err = config.DB.QueryRow("SELECT exp_date FROM users WHERE id = $1", req.UserID).Scan(&expDate) // Alterado para config.DB e placeholder $1
+	err = config.DB.QueryRow("SELECT exp_date FROM users WHERE id = ?", req.UserID).Scan(&expDate) // Alterado para config.DB e placeholder ?
 	if err != nil {
 		log.Printf("❌ ERRO ao buscar data de vencimento: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar data de vencimento"})
@@ -456,7 +514,7 @@ func AddScreen(c *gin.Context) {
 
 	// 📌 Obtém créditos do **MEMBER_ID** na tabela `reg_users`
 	var creditosAtuais float64
-	err = config.DB.QueryRow("SELECT credits FROM reg_users WHERE id = $1", memberID).Scan(&creditosAtuais) // Alterado para config.DB e placeholder $1
+	err = config.DB.QueryRow("SELECT credits FROM reg_users WHERE id = ?", memberID).Scan(&creditosAtuais) // Alterado para config.DB e placeholder ?
 	if err != nil {
 		log.Printf("❌ ERRO ao buscar créditos da revenda %d: %v", memberID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar créditos do revendedor"})
@@ -486,7 +544,7 @@ func AddScreen(c *gin.Context) {
 	defer txCtx.Rollback() // Defer Rollback after successful Begin
 
 	// 📌 Atualiza a quantidade de telas no usuário
-	_, err = txCtx.Exec("UPDATE users SET max_connections = max_connections + 1 WHERE id = $1", req.UserID) // Alterado para placeholder $1
+	_, err = txCtx.Exec("UPDATE users SET max_connections = max_connections + 1 WHERE id = ?", req.UserID) // Alterado para placeholder ?
 	if err != nil {
 		// txCtx.Rollback() // Already handled by defer
 		log.Printf("❌ ERRO ao atualizar telas do usuário %d: %v", req.UserID, err)
@@ -495,7 +553,7 @@ func AddScreen(c *gin.Context) {
 	}
 
 	// 📌 Atualiza os créditos na `reg_users`
-	_, err = txCtx.Exec("UPDATE reg_users SET credits = credits - $1 WHERE id = $2", valorCobrado, memberID) // Alterado para placeholders $1, $2
+	_, err = txCtx.Exec("UPDATE reg_users SET credits = credits - ? WHERE id = ?", valorCobrado, memberID) // Alterado para placeholders ?
 	if err != nil {
 		// txCtx.Rollback() // Already handled by defer
 		log.Printf("❌ ERRO ao atualizar créditos da revenda %d: %v", memberID, err)
@@ -564,7 +622,7 @@ func RemoveScreen(c *gin.Context) {
 		memberID := int(claims["member_id"].(float64))
 
 		var userMemberID int
-		errDb := config.DB.QueryRow("SELECT member_id FROM users WHERE id = $1", req.UserID).Scan(&userMemberID) // Alterado para config.DB
+		errDb := config.DB.QueryRow("SELECT member_id FROM users WHERE id = ?", req.UserID).Scan(&userMemberID) // Alterado para config.DB e placeholder ?
 		if errDb != nil {
 			log.Printf("❌ ERRO ao buscar usuário %d para RemoveScreen: %v", req.UserID, errDb)
 			c.JSON(http.StatusNotFound, gin.H{"erro": "Usuário não encontrado"})
@@ -580,7 +638,7 @@ func RemoveScreen(c *gin.Context) {
 
 	// 📌 Obtém total de telas
 	var totalTelas int
-	err = config.DB.QueryRow("SELECT max_connections FROM users WHERE id = $1", req.UserID).Scan(&totalTelas) // Alterado para config.DB e placeholder $1
+	err = config.DB.QueryRow("SELECT max_connections FROM users WHERE id = ?", req.UserID).Scan(&totalTelas) // Alterado para config.DB e placeholder ?
 	if err != nil {
 		log.Printf("Erro ao buscar total de telas para usuário %d: %v", req.UserID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar informações do usuário"})
@@ -592,7 +650,7 @@ func RemoveScreen(c *gin.Context) {
 	}
 
 	// 📌 Atualiza banco de dados
-	_, err = config.DB.Exec("UPDATE users SET max_connections = max_connections - 1 WHERE id = $1", req.UserID) // Alterado para config.DB e placeholder $1
+	_, err = config.DB.Exec("UPDATE users SET max_connections = max_connections - 1 WHERE id = ?", req.UserID) // Alterado para config.DB e placeholder ?
 	if err != nil {
 		log.Printf("Erro ao remover tela para usuário %d: %v", req.UserID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao remover tela"})
