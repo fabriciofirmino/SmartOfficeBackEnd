@@ -10,8 +10,8 @@ type AplicativoInfo struct {
 
 // EditUserRequest atualizado para aceitar array de aplicativos
 type EditUserRequest struct {
-	Username          string           `json:"username,omitempty" validate:"omitempty,min=4,max=15"`
-	Password          string           `json:"password,omitempty" validate:"omitempty,min=4,max=15"`
+	Username          string           `json:"username,omitempty" validate:"omitempty"`
+	Password          string           `json:"password,omitempty" validate:"omitempty"`
 	ResellerNotes     string           `json:"reseller_notes,omitempty"`
 	NumeroWhats       *string          `json:"numero_whats,omitempty"`       // Ponteiro para string para aceitar null ou string vazia
 	NomeParaAviso     *string          `json:"nome_para_aviso,omitempty"`    // Ponteiro para string

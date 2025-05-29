@@ -8,6 +8,7 @@ import (
 	"log"
 	"math" // Mantido por enquanto, AddScreen usa math.Ceil
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -20,18 +21,6 @@ import (
 	"apiBackEnd/models"
 	"apiBackEnd/utils"
 )
-
-// validateAndSanitizeField é uma função auxiliar para validar e sanitizar campos.
-// Retorna uma string de erro se a validação falhar, ou uma string vazia se for bem-sucedido.
-// Adicionei o parâmetro gin.Context para consistência, embora não é usado aqui.
-func validateAndSanitizeField(fieldName, value string, minLen, maxLen int, c *gin.Context) string {
-	if len(value) < minLen || len(value) > maxLen {
-		return fmt.Sprintf("O campo %s deve ter entre %d e %d caracteres", fieldName, minLen, maxLen)
-	}
-	// A sanitização foi comentada pois a regexp não estava sendo usada e causava erro de import.
-	// Se a sanitização for necessária, a lógica e a importação de "regexp" devem ser revisadas.
-	return "" // Sem erros
-}
 
 // EditUser godoc
 // @Summary Edita um usuário existente
@@ -77,10 +66,56 @@ func validateAndSanitizeField(fieldName, value string, minLen, maxLen int, c *gi
 //	  "Valor_plano": 29.50
 //	}
 func EditUser(c *gin.Context) {
+	// Buscar limites de caracteres das variáveis de ambiente (obrigatório)
+	userCharsStr := os.Getenv("TOTAL_CARACTERES_USER")
+	passCharsStr := os.Getenv("TOTAL_CARACTERES_SENHA")
+	if userCharsStr == "" || passCharsStr == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Configuração de ambiente inválida: TOTAL_CARACTERES_USER e TOTAL_CARACTERES_SENHA são obrigatórios no .env"})
+		return
+	}
+	maxUserChars, err := strconv.Atoi(userCharsStr)
+	if err != nil || maxUserChars < 1 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Valor inválido para TOTAL_CARACTERES_USER no .env"})
+		return
+	}
+	maxPassChars, err := strconv.Atoi(passCharsStr)
+	if err != nil || maxPassChars < 1 {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Valor inválido para TOTAL_CARACTERES_SENHA no .env"})
+		return
+	}
+	minUserChars := 4
+	minPassChars := 4
+
 	userIDStr := c.Param("id")
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID de usuário inválido"})
+		return
+	}
+
+	// Extrair member_id do token para validação de permissões
+	tokenString := c.GetHeader("Authorization")
+	claims, _, err := utils.ValidateToken(tokenString)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token inválido"})
+		return
+	}
+	memberID := int(claims["member_id"].(float64))
+
+	// Validar se o usuário tem permissão para editar este usuário
+	temPermissao, _, err := utils.VerificaPermissaoUsuario(userID, memberID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Usuário não encontrado"})
+		} else {
+			log.Printf("Erro ao verificar permissão: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao verificar permissões"})
+		}
+		return
+	}
+	if !temPermissao {
+		log.Printf("🚨 ALERTA! Tentativa de edição não autorizada! (Usuário: %d, Revenda: %d)", userID, memberID)
+		c.JSON(http.StatusForbidden, gin.H{"error": "Você não tem permissão para editar este usuário"})
 		return
 	}
 
@@ -116,20 +151,49 @@ func EditUser(c *gin.Context) {
 
 	var querySetters []string
 	var queryArgs []interface{}
-	// argCounter não é mais necessário para formatar os placeholders na query string
 
 	if req.Username != "" {
-		if errMsg := validateAndSanitizeField("username", req.Username, 4, 15, c); errMsg != "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+		// Validar tamanho do username conforme variáveis de ambiente
+		if len(req.Username) < minUserChars || len(req.Username) > maxUserChars {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("O nome de usuário deve ter entre %d e %d caracteres", minUserChars, maxUserChars)})
 			return
 		}
+
+		// Verificar se o username já existe (excluindo o usuário atual)
+		var count int
+		err := config.DB.QueryRow("SELECT COUNT(*) FROM users WHERE username = ? AND id != ?", req.Username, userID).Scan(&count)
+		if err != nil {
+			log.Printf("Erro ao verificar unicidade do username: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao verificar disponibilidade do nome de usuário"})
+			return
+		}
+		if count > 0 {
+			c.JSON(http.StatusConflict, gin.H{"error": "Este nome de usuário já está em uso"})
+			return
+		}
+
 		querySetters = append(querySetters, "username = ?")
 		queryArgs = append(queryArgs, req.Username)
 	}
 	if req.Password != "" {
-		if errMsg := validateAndSanitizeField("password", req.Password, 4, 15, c); errMsg != "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": errMsg})
+		// Validar tamanho da senha conforme variáveis de ambiente
+		if len(req.Password) < minPassChars || len(req.Password) > maxPassChars {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("A senha deve ter entre %d e %d caracteres", minPassChars, maxPassChars)})
 			return
+		}
+		// Nova validação: senha não pode ser igual ao login
+		if req.Username != "" && req.Password == req.Username {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "A senha não pode ser igual ao login."})
+			return
+		}
+		// Se não veio username na requisição, buscar do banco
+		if req.Username == "" {
+			var currentUsername string
+			err := config.DB.QueryRow("SELECT username FROM users WHERE id = ?", userID).Scan(&currentUsername)
+			if err == nil && req.Password == currentUsername {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "A senha não pode ser igual ao login."})
+				return
+			}
 		}
 		querySetters = append(querySetters, "password = ?")
 		queryArgs = append(queryArgs, req.Password) // Idealmente, a senha seria hasheada aqui
@@ -181,8 +245,18 @@ func EditUser(c *gin.Context) {
 		queryArgs = append(queryArgs, *req.FranquiaMemberID)
 	}
 	if req.Valor_plano != nil {
+		// Converter para formato decimal correto (divisão por 100)
+		var valorPlanoAjustado float64
+
+		// Se o valor for maior que 1000, assume que é em centavos (ex: 396594 -> 3965.94)
+		if *req.Valor_plano > 1000 {
+			valorPlanoAjustado = *req.Valor_plano / 100
+		} else {
+			valorPlanoAjustado = *req.Valor_plano
+		}
+
 		querySetters = append(querySetters, "Valor_plano = ?")
-		queryArgs = append(queryArgs, *req.Valor_plano)
+		queryArgs = append(queryArgs, valorPlanoAjustado)
 	}
 
 	if len(querySetters) == 0 {
