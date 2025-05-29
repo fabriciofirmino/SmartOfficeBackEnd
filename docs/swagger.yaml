@@ -1,0 +1,1241 @@
+basePath: /
+definitions:
+  controllers.ChangeDueDateRequest:
+    properties:
+      motivo:
+        type: string
+      nova_data_vencimento:
+        type: integer
+      user_id:
+        type: integer
+    type: object
+  controllers.DashboardResponse:
+    properties:
+      canaisOff:
+        type: integer
+      lastUpdated:
+        description: Ou sql.NullString se puder ser nulo
+        type: string
+      totalCanais:
+        type: integer
+      totalClientes:
+        type: integer
+      totalClientesRevenda:
+        type: integer
+      totalEpisodiosSeries:
+        type: integer
+      totalFilmes:
+        type: integer
+      totalSeries:
+        type: integer
+      totalTestesAtivos:
+        type: integer
+      totalVencido:
+        type: integer
+    type: object
+  controllers.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  controllers.LoginResponse:
+    properties:
+      credits:
+        type: number
+      member_group_id:
+        type: integer
+      member_id:
+        type: integer
+      status:
+        type: integer
+      token:
+        type: string
+    type: object
+  controllers.RenewRequest:
+    properties:
+      id_cliente:
+        type: integer
+      quantidade_renovacao_em_meses:
+        type: integer
+    type: object
+  controllers.RenewRollbackRequest:
+    properties:
+      user_id:
+        type: integer
+    type: object
+  controllers.TestRequest:
+    properties:
+      franquia_member_id:
+        description: Novo campo opcional
+        type: integer
+      nome_para_aviso:
+        type: string
+      numero_whats:
+        type: string
+      password:
+        description: Sempre será gerado
+        type: string
+      username:
+        description: Pode ser opcional
+        type: string
+    type: object
+  controllers.TrustBonusRequest:
+    properties:
+      dias_adicionados:
+        type: integer
+      motivo:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  models.AplicativoInfo:
+    properties:
+      device_id:
+        type: string
+      mac:
+        type: string
+      nome_do_aplicativo:
+        type: string
+      vencimento_aplicativo:
+        type: string
+    type: object
+  models.DeletedUser:
+    properties:
+      delete_reason:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
+        type: integer
+      email:
+        type: string
+      exp_date:
+        type: integer
+      id:
+        type: integer
+      last_login:
+        type: string
+      max_connections:
+        type: integer
+      member_id:
+        type: integer
+      username:
+        type: string
+    type: object
+  models.EditUserRequest:
+    properties:
+      aplicativos:
+        items:
+          $ref: '#/definitions/models.AplicativoInfo'
+        type: array
+      bouquet:
+        type: string
+      enviar_notificacao:
+        type: boolean
+      nome_para_aviso:
+        type: string
+      numero_whats:
+        type: string
+      password:
+        type: string
+      reseller_notes:
+        type: string
+      username:
+        type: string
+    type: object
+  models.ScreenRequest:
+    properties:
+      userID:
+        type: integer
+    required:
+    - userID
+    type: object
+  models.UserRegionPayload:
+    properties:
+      forced_country:
+        description: 'Ex: "US"'
+        type: string
+    required:
+    - forced_country
+    type: object
+  models.UserStatusPayload:
+    properties:
+      enabled:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: suporte@example.com
+    name: Suporte
+  description: Documentação da API IPTV
+  title: API IPTV
+  version: 1.0.5
+paths:
+  /api/change-due-date:
+    post:
+      consumes:
+      - application/json
+      description: Altera o dia do vencimento da conta para o mês atual. Só pode ser
+        feito uma vez a cada ALTERACAO_VENCIMENTO_FREQUENCIA_DIAS dias e o dia deve
+        ser válido para o mês.
+      parameters:
+      - description: 'Exemplo: {\'
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.ChangeDueDateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo de resposta: {\"sucesso\": true, \"novo_exp_date\":
+            1716403200}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro de validação ou regra de negócio
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Alteração da data mensal de vencimento
+      tags:
+      - Ações
+  /api/clients:
+    get:
+      consumes:
+      - application/json
+      description: Retorna todos os clientes associados ao usuário autenticado. Permite
+        filtrar por query string, login ou userID.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista de clientes, total_registros e token_expira_em
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno ao buscar clientes
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Lista clientes
+      tags:
+      - Clientes
+  /api/clients-table:
+    get:
+      consumes:
+      - application/json
+      description: Retorna uma lista de clientes paginada e filtrada para uso em DataTables,
+        associados ao member_id do token. Inclui filtro de status online e expiração.
+      parameters:
+      - description: 'Número da página (padrão: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Limite de registros por página (padrão: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: Termo de pesquisa para filtrar por username ou reseller_notes
+        in: query
+        name: search
+        type: string
+      - description: Filtrar usuários online (true para listar apenas online, false
+          para todos)
+        in: query
+        name: online
+        type: boolean
+      - description: Filtrar clientes por vencimento (7, 15, 30, custom até 90 ou
+          \'0\' para vencidos)
+        in: query
+        name: expiration_filter
+        type: integer
+      - description: Filtrar por ID do membro da franquia
+        in: query
+        name: franquia_member_id
+        type: integer
+      - description: Filtrar por status de trial (0 para não trial, 1 para trial)
+        in: query
+        name: is_trial
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Retorna a lista de clientes paginada e informações de paginação
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno ao buscar ou processar os dados
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Retorna clientes paginados e filtrados
+      tags:
+      - ClientsTable
+  /api/clients/login/{login}:
+    get:
+      consumes:
+      - application/json
+      description: Retorna todos os clientes associados ao usuário autenticado. Permite
+        filtrar por query string, login ou userID.
+      parameters:
+      - description: Login do cliente (username)
+        in: path
+        name: login
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista de clientes, total_registros e token_expira_em
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno ao buscar clientes
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Lista clientes
+      tags:
+      - Clientes
+  /api/clients/userid/{userid}:
+    get:
+      consumes:
+      - application/json
+      description: Retorna todos os clientes associados ao usuário autenticado. Permite
+        filtrar por query string, login ou userID.
+      parameters:
+      - description: ID do cliente (userID)
+        in: path
+        name: userid
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista de clientes, total_registros e token_expira_em
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno ao buscar clientes
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Lista clientes
+      tags:
+      - Clientes
+  /api/create-test:
+    post:
+      consumes:
+      - application/json
+      description: Gera um usuário e senha de teste para IPTV e retorna as credenciais.
+      parameters:
+      - description: Dados para criação do teste
+        in: body
+        name: test
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.TestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Teste criado com sucesso
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro na requisição ou usuário já existe (com credenciais fornecidas)
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "429":
+          description: Muitas tentativas de geração aleatória falharam
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno do servidor
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Criar Teste IPTV
+      tags:
+      - Testes IPTV
+  /api/credits:
+    get:
+      description: Retorna o total de créditos do usuário autenticado e o tempo restante
+        do token em segundos.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Dados de créditos e tempo restante
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Token inválido ou expirado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro ao buscar créditos
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obtém créditos atualizados e tempo restante do token
+      tags:
+      - Créditos
+  /api/dashboard:
+    get:
+      description: Retorna os totais de clientes e testes ativos
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Dados do dashboard
+          schema:
+            $ref: '#/definitions/controllers.DashboardResponse'
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obtém os dados do dashboard
+      tags:
+      - Dashboard
+  /api/details-error/{id_usuario}:
+    get:
+      consumes:
+      - application/json
+      description: Retorna os erros registrados na conta de um usuário, incluindo
+        IP, dispositivo e motivo do erro.
+      parameters:
+      - description: ID do usuário
+        in: path
+        name: id_usuario
+        required: true
+        type: integer
+      - description: 'Número de registros por página (padrão: 10)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Número da página (padrão: 1)'
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista paginada de erros do usuário
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Nenhum erro encontrado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Detalhes dos erros do usuário com paginação
+      tags:
+      - Erros
+  /api/regions/allowed:
+    get:
+      description: Retorna as regiões permitidas configuradas na tabela settings como
+        array de siglas.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo: {\"allowed_countries\": [\"AR\", \"AU\", \"BR\",
+            \"CA\", \"EU\", \"FR\", \"DE\", \"JP\", \"PT\", \"RU\", \"SA\", \"ZA\",
+            \"UA\", \"US\"]}'
+          schema:
+            additionalProperties:
+              items:
+                type: string
+              type: array
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obter Regiões Permitidas
+      tags:
+      - Gerenciamento de Regiões
+  /api/renew:
+    post:
+      consumes:
+      - application/json
+      description: Atualiza a data de expiração da conta com base no tempo selecionado.
+      parameters:
+      - description: Dados para renovação
+        in: body
+        name: renew
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.RenewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Conta renovada com sucesso
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro na requisição
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido ou conta bloqueada
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "402":
+          description: Créditos insuficientes
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Renovar Conta
+      tags:
+      - Renovação
+  /api/renew-rollback:
+    post:
+      consumes:
+      - application/json
+      description: 'Desfaz a última renovação: restaura exp_date e créditos a partir
+        do backup da última renovação. Só pode ser feito uma vez a cada ROLLBACK_PERMITIDO_FREQUENCIA
+        dias e dentro do período de ROLLBACK_PERMITIDO_DIAS após a renovação.'
+      parameters:
+      - description: 'Exemplo: {\'
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.RenewRollbackRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo de resposta: {\"sucesso\": true, \"exp_date_anterior\":
+            1716403200, \"exp_date_restaurado\": 1716403200, \"creditos_devolvidos\":
+            3}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro de validação ou regra de negócio
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Rollback de renovação
+      tags:
+      - Ações
+  /api/tools-table/add-screen:
+    post:
+      consumes:
+      - application/json
+      description: Aumenta o número máximo de conexões do usuário e desconta créditos
+        se aplicável
+      parameters:
+      - description: JSON contendo o ID do usuário
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScreenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Retorna o novo total de telas e o saldo de créditos atualizado
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro nos parâmetros ou créditos insuficientes
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno ao adicionar tela
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Adiciona uma nova tela ao usuário
+      tags:
+      - ToolsTable
+  /api/tools-table/edit/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Permite a edição de dados de um usuário na revenda autenticada
+      parameters:
+      - description: ID do usuário a ser editado
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Dados do usuário a serem editados
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.EditUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Usuário editado com sucesso
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro na requisição
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido ou acesso negado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno ao processar a requisição
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Edita um usuário
+      tags:
+      - ToolsTable
+  /api/tools-table/remove-screen:
+    post:
+      consumes:
+      - application/json
+      description: Diminui o número máximo de conexões do usuário, garantindo que
+        tenha pelo menos uma tela ativa
+      parameters:
+      - description: JSON contendo o ID do usuário
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.ScreenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Retorna o novo total de telas
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro nos parâmetros ou limite mínimo atingido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno ao remover tela
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove uma tela do usuário
+      tags:
+      - ToolsTable
+  /api/trust-bonus:
+    post:
+      consumes:
+      - application/json
+      description: Adiciona dias extras à conta do usuário, conforme regras parametrizadas.
+        Só é permitido para contas vencidas, quantidade de dias entre CONFIANCA_DIAS_MIN
+        e CONFIANCA_DIAS_MAX, e apenas uma vez a cada CONFIANCA_FREQUENCIA_DIAS dias.
+      parameters:
+      - description: 'Exemplo: {\'
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.TrustBonusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo de resposta: {\"sucesso\": true, \"novo_exp_date\":
+            1716403200}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Erro de validação ou regra de negócio
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido ou não fornecido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Liberação por confiança (dias extras)
+      tags:
+      - Ações
+  /api/users/{user_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Marca o usuário como desativado e registra a exclusão lógica.
+      parameters:
+      - description: ID do Usuário
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo: {\"message\": \"Usuário excluído logicamente com
+            sucesso\"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Usuário não encontrado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Exclusão Lógica de Conta
+      tags:
+      - Gerenciamento de Usuários
+  /api/users/{user_id}/region:
+    patch:
+      consumes:
+      - application/json
+      description: Altera o campo "forced_country" do usuário.
+      parameters:
+      - description: ID do Usuário
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: 'Payload com o país forçado (ex: US)'
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserRegionPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo: {\"message\": \"Região do usuário atualizada com
+            sucesso\"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID ou payload inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Usuário não tem permissão para alterar este usuário
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Usuário não encontrado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Forçar Região para Usuário
+      tags:
+      - Gerenciamento de Usuários
+  /api/users/{user_id}/restore:
+    patch:
+      description: Restaura a conta do usuário removendo os campos de exclusão lógica.
+      parameters:
+      - description: ID do Usuário
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: 'Exemplo: {\"message\": \"Usuário restaurado com sucesso\"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Usuário não encontrado ou não está excluído
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Restaurar Conta
+      tags:
+      - Gerenciamento de Usuários
+  /api/users/{user_id}/session:
+    delete:
+      description: Remove a sessão ativa do usuário da tabela "user_activity_now".
+      parameters:
+      - description: ID do Usuário
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: 'Exemplo: {\"message\": \"Sessão do usuário removida com sucesso\"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Usuário não tem permissão para expulsar este usuário
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Usuário não encontrado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Expulsar Usuário (Kick)
+      tags:
+      - Gerenciamento de Usuários
+  /api/users/{user_id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Altera o campo "enabled" do usuário.
+      parameters:
+      - description: ID do Usuário
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      - description: Payload contendo o novo status do usuário
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.UserStatusPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo: {\"message\": \"Status do usuário atualizado com
+            sucesso\"}'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: ID ou payload inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Usuário não tem permissão para alterar este usuário
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Usuário não encontrado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ativar/Desativar Conta
+      tags:
+      - Gerenciamento de Usuários
+  /api/users/deleted:
+    get:
+      description: Retorna a lista de usuários que foram excluídos logicamente nos
+        últimos 30 dias.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Lista de usuários excluídos
+          schema:
+            items:
+              $ref: '#/definitions/models.DeletedUser'
+            type: array
+        "500":
+          description: Erro interno
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Listar Contas Excluídas
+      tags:
+      - Gerenciamento de Usuários
+  /api/version:
+    get:
+      description: Retorna a versão atual da API definida no arquivo .env
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Versão da API
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Obter versão da API
+      tags:
+      - Versão
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Check the health of the service, including database and Redis connections
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Exemplo: {\"status\": \"OK\", \"database\": \"OK\", \"redis\":
+            \"OK\"}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: 'Exemplo: {\"status\": \"Error\", \"database\": \"Error: connection
+            failed\", \"redis\": \"OK\"}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health Check
+      tags:
+      - health
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Autentica um usuário e retorna um token JWT se as credenciais forem
+        válidas.
+      parameters:
+      - description: Credenciais de login
+        in: body
+        name: login
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login realizado com sucesso
+          schema:
+            $ref: '#/definitions/controllers.LoginResponse'
+        "400":
+          description: Erro na requisição
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Credenciais inválidas
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Autenticação de Usuário
+      tags:
+      - Autenticação
+  /logout:
+    post:
+      consumes:
+      - application/json
+      description: Remove o token ativo do usuário, invalidando sua sessão.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout realizado com sucesso
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Token inválido ou não autorizado
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout do Usuário
+      tags:
+      - Logout
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
