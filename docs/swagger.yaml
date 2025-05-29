@@ -734,19 +734,14 @@ paths:
     put:
       consumes:
       - application/json
-      description: Edita um usuário com base no ID fornecido. Permite a atualização
-        de vários campos, incluindo nome de usuário, senha, notas do revendedor, número
-        do WhatsApp, nome para aviso, envio de notificação, bouquet, aplicativos e
-        preferências de notificação (Notificacao_conta, Notificacao_vods, Notificacao_jogos).
+      description: Edita um usuário com base no ID fornecido. Permite a atualização de vários campos, incluindo nome de usuário, senha, notas do revendedor, número do WhatsApp, nome para aviso, envio de notificação, bouquet, aplicativos, preferências de notificação (Notificacao_conta, Notificacao_vods, Notificacao_jogos) e valor do plano.
       parameters:
       - description: ID do Usuário
         in: path
         name: id
         required: true
         type: integer
-      - description: Dados do Usuário para Editar. Campos como 'Notificacao_conta',
-          'Notificacao_vods', 'Notificacao_jogos' esperam true/false e são armazenados
-          como 1/0.
+      - description: Dados do Usuário para Editar. Campos como 'Notificacao_conta', 'Notificacao_vods', 'Notificacao_jogos' esperam true/false e são armazenados como 1/0. 'Valor_plano' espera um valor decimal.
         in: body
         name: user
         required: true
@@ -756,7 +751,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Usuário editado com sucesso
+          description: Usuário editado com sucesso. Inclui todos os campos atualizados, como 'Valor_plano'.
           schema:
             additionalProperties: true
             type: object
