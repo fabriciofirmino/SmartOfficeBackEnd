@@ -3,6 +3,7 @@ package controllers
 import (
 	"apiBackEnd/models"
 	"apiBackEnd/utils"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"sync"
@@ -12,52 +13,56 @@ import (
 
 // Estrutura para o JSON de resposta
 type ClientResponse struct {
-	ID                int    `json:"id"`
-	MemberID          int    `json:"member_id"`
-	Username          string `json:"username"`
-	Password          string `json:"password"`
-	ExpDate           string `json:"exp_date"`
-	AdminEnabled      int    `json:"admin_enabled"`
-	Enabled           int    `json:"enabled"`
-	AdminNotes        string `json:"admin_notes"`
-	ResellerNotes     string `json:"reseller_notes"`
-	Bouquet           string `json:"bouquet"`
-	MaxConnections    int    `json:"max_connections"`
-	IsRestreamer      int    `json:"is_restreamer"`
-	AllowedIPs        string `json:"allowed_ips"`
-	AllowedUA         string `json:"allowed_ua"`
-	IsTrial           int    `json:"is_trial"`
-	CreatedAt         string `json:"created_at"`
-	CreatedBy         string `json:"created_by"`
-	PairID            int    `json:"pair_id"`
-	IsMag             int    `json:"is_mag"`
-	IsE2              int    `json:"is_e2"`
-	ForceServerID     int    `json:"force_server_id"`
-	IsIspLock         int    `json:"is_isplock"`
-	IspDesc           string `json:"isp_desc"`
-	ForcedCountry     string `json:"forced_country"`
-	IsStalker         int    `json:"is_stalker"`
-	BypassUA          string `json:"bypass_ua"`
-	AsNumber          string `json:"as_number"`
-	PlayToken         string `json:"play_token"`
-	PackageID         int    `json:"package_id"`
-	UsrMac            string `json:"usr_mac"`
-	UsrDeviceKey      string `json:"usr_device_key"`
-	Notes2            string `json:"notes2"`
-	RootEnabled       int    `json:"root_enabled"`
-	NumeroWhats       string `json:"numero_whats"`
-	NomeParaAviso     string `json:"nome_para_aviso"`
-	Email             string `json:"email"`
-	EnviarNotificacao bool   `json:"enviar_notificacao"`
-	SobrenomeAvisos   string `json:"sobrenome_avisos"`
-	Deleted           int    `json:"deleted"`
-	DateDeleted       string `json:"date_deleted"`
-	AppID             string `json:"app_id"`
-	Aplicativo        string `json:"aplicativo"`
-	TrustRenew        int    `json:"trust_renew"`
-	Franquia          string `json:"franquia"`
-	FranquiaMemberID  int    `json:"franquia_member_id"`
-	P2P               int    `json:"p2p"`
+	ID                int     `json:"id"`
+	MemberID          int     `json:"member_id"`
+	Username          string  `json:"username"`
+	Password          string  `json:"password"`
+	ExpDate           string  `json:"exp_date"`
+	AdminEnabled      int     `json:"admin_enabled"`
+	Enabled           int     `json:"enabled"`
+	AdminNotes        string  `json:"admin_notes"`
+	ResellerNotes     string  `json:"reseller_notes"`
+	Bouquet           string  `json:"bouquet"`
+	MaxConnections    int     `json:"max_connections"`
+	IsRestreamer      int     `json:"is_restreamer"`
+	AllowedIPs        string  `json:"allowed_ips"`
+	AllowedUA         string  `json:"allowed_ua"`
+	IsTrial           int     `json:"is_trial"`
+	CreatedAt         string  `json:"created_at"`
+	CreatedBy         string  `json:"created_by"`
+	PairID            int     `json:"pair_id"`
+	IsMag             int     `json:"is_mag"`
+	IsE2              int     `json:"is_e2"`
+	ForceServerID     int     `json:"force_server_id"`
+	IsIspLock         int     `json:"is_isplock"`
+	IspDesc           string  `json:"isp_desc"`
+	ForcedCountry     string  `json:"forced_country"`
+	IsStalker         int     `json:"is_stalker"`
+	BypassUA          string  `json:"bypass_ua"`
+	AsNumber          string  `json:"as_number"`
+	PlayToken         string  `json:"play_token"`
+	PackageID         int     `json:"package_id"`
+	UsrMac            string  `json:"usr_mac"`
+	UsrDeviceKey      string  `json:"usr_device_key"`
+	Notes2            string  `json:"notes2"`
+	RootEnabled       int     `json:"root_enabled"`
+	NumeroWhats       string  `json:"numero_whats"`
+	NomeParaAviso     string  `json:"nome_para_aviso"`
+	Email             string  `json:"email"`
+	EnviarNotificacao bool    `json:"enviar_notificacao"`
+	SobrenomeAvisos   string  `json:"sobrenome_avisos"`
+	Deleted           int     `json:"deleted"`
+	DateDeleted       string  `json:"date_deleted"`
+	AppID             string  `json:"app_id"`
+	Aplicativo        string  `json:"aplicativo"`
+	TrustRenew        int     `json:"trust_renew"`
+	Franquia          string  `json:"franquia"`
+	FranquiaMemberID  int     `json:"franquia_member_id"`
+	P2P               int     `json:"p2p"`
+	Notificacao_conta bool    `json:"Notificacao_conta"`
+	Notificacao_vods  bool    `json:"Notificacao_vods"`
+	Notificacao_jogos bool    `json:"Notificacao_jogos"`
+	Valor_plano       float64 `json:"Valor_plano"`
 }
 
 // GetClients retorna a lista de clientes de um membro autenticado.
@@ -180,6 +185,10 @@ func GetClients(c *gin.Context) {
 				Franquia:          NullStringToString(client.Franquia),
 				FranquiaMemberID:  NullIntToInt(client.FranquiaMemberID),
 				P2P:               NullIntToInt(client.P2P),
+				Notificacao_conta: NullSQLBoolToBool(client.Notificacao_conta),
+				Notificacao_vods:  NullSQLBoolToBool(client.Notificacao_vods),
+				Notificacao_jogos: NullSQLBoolToBool(client.Notificacao_jogos),
+				Valor_plano:       NullSQLFloatToFloat64(client.Valor_plano),
 			}
 		}(i, client)
 	}
@@ -222,4 +231,20 @@ func NullIntToInt(ni models.NullInt64) int {
 // Converter `models.NullString` para `bool`
 func NullStringToBool(ns models.NullString) bool {
 	return ns.Valid && ns.String == "true"
+}
+
+// Converter sql.NullBool para bool normal
+func NullSQLBoolToBool(nb sql.NullBool) bool {
+	if nb.Valid {
+		return nb.Bool
+	}
+	return false // Ou qualquer valor padrão que você preferir para nulos
+}
+
+// Converter sql.NullFloat64 para float64 normal
+func NullSQLFloatToFloat64(nf sql.NullFloat64) float64 {
+	if nf.Valid {
+		return nf.Float64
+	}
+	return 0.0 // Ou qualquer valor padrão que você preferir para nulos
 }
