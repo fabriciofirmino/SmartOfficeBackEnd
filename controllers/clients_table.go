@@ -59,6 +59,20 @@ func GetClientsTable(c *gin.Context) {
 	// 📌 Obtém o parâmetro `expiration_filter` (dias até expiração ou `-1` para vencidos)
 	expirationFilter, _ := strconv.Atoi(c.DefaultQuery("expiration_filter", "0"))
 
+	// 📌 Obtém o parâmetro `franquia_member_id` para filtro
+	franquiaMemberIDFilterStr := c.Query("franquia_member_id")
+	var franquiaMemberIDFilter sql.NullInt64
+	if franquiaMemberIDFilterStr != "" {
+		fmID, err := strconv.ParseInt(franquiaMemberIDFilterStr, 10, 64)
+		if err == nil {
+			franquiaMemberIDFilter.Int64 = fmID
+			franquiaMemberIDFilter.Valid = true
+		} else {
+			log.Printf("⚠️ Aviso: Valor inválido para o filtro franquia_member_id: %s", franquiaMemberIDFilterStr)
+			// Considerar retornar um erro 400 se o valor for inválido e o filtro for crucial
+		}
+	}
+
 	// 📌 Parâmetros de paginação e pesquisa
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
@@ -74,14 +88,14 @@ func GetClientsTable(c *gin.Context) {
 	offset := (page - 1) * limit
 
 	// 📌 Obtém status online de todos os usuários ANTES da paginação
-	onlineStatuses, err := getAllUsersOnlineStatus(memberID)
+	onlineStatuses, err := getAllUsersOnlineStatus(memberID) // TODO: Revisar se este memberID é o correto para buscar status online quando filtrando por franquia_member_id
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao buscar status online"})
 		return
 	}
 
 	// 📌 Consulta base para buscar todos os usuários do membro
-	query := `SELECT id, username, password, exp_date, enabled, admin_enabled, max_connections, created_at, reseller_notes, is_trial, Aplicativo 
+	query := `SELECT id, username, password, exp_date, enabled, admin_enabled, max_connections, created_at, reseller_notes, is_trial, Aplicativo, franquia_member_id 
 			FROM users WHERE member_id = ? and deleted != '1'`
 	var args []interface{}
 	args = append(args, memberID)
@@ -96,6 +110,12 @@ func GetClientsTable(c *gin.Context) {
 	if isTrialFilter != "" {
 		query += ` AND is_trial = ?`
 		args = append(args, isTrialFilter)
+	}
+
+	// 📌 Aplica filtro de franquia_member_id (se fornecido)
+	if franquiaMemberIDFilter.Valid {
+		query += ` AND franquia_member_id = ?`
+		args = append(args, franquiaMemberIDFilter.Int64)
 	}
 
 	// 📌 Ordenação antes da paginação
@@ -116,11 +136,14 @@ func GetClientsTable(c *gin.Context) {
 		var client models.ClientTableData
 		var expDate, createdAt, resellerNotes sql.NullString
 		var aplicativo sql.NullString
+		var franquiaMemberIDScanned sql.NullInt64 // Variável para escanear o franquia_member_id
+
 		if err := rows.Scan(
 			&client.ID, &client.Username, &client.Password, &expDate, &client.Enabled,
 			&client.AdminEnabled, &client.MaxConnections, &createdAt, &resellerNotes, &client.IsTrial,
-			&aplicativo,
+			&aplicativo, &franquiaMemberIDScanned, // Adicionado para scan
 		); err != nil {
+			log.Printf("❌ Erro ao escanear dados do cliente: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"erro": "Erro ao processar os dados"})
 			return
 		}
@@ -128,6 +151,7 @@ func GetClientsTable(c *gin.Context) {
 		client.CreatedAt = createdAt
 		client.ResellerNotes = resellerNotes
 		client.Aplicativo = aplicativo.String
+		client.FranquiaMemberID = franquiaMemberIDScanned // Atribui o valor escaneado
 
 		// 📌 Associa status online se existir
 		if status, exists := onlineStatuses[client.ID]; exists {
